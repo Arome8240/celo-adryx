@@ -49,26 +49,31 @@ my-celo-app/
 
 ---
 
-## Phase 0 — Foundations
+## Phase 0 — Foundations ✅ done
 
-- [ ] Add `packages/*` to `pnpm-workspace.yaml` (only if we do the shared-types package below).
-- [ ] Scaffold `apps/api` as a NestJS project (`@nestjs/cli`), matching adryxflight's
-      `package.json` dependency set minus `stripe`, plus `viem` for on-chain reads.
-- [ ] Copy `adryxflight/apps/api/prisma/schema.prisma` and trim it (see schema plan below).
-- [ ] **Provision a brand-new Postgres database for this project.** Do not point this at
-      adryxflight's Render database — different product, different data, and it's a live
-      shared DB for another app. `npx prisma db push` against a fresh DB for initial setup
-      (no migration history to preserve yet, so `prisma migrate dev` is fine here, unlike in
-      adryxflight).
-- [ ] Copy `common/` wholesale: `guards/jwt-auth.guard.ts`, `decorators/*`,
-      `interfaces/jwt-payload.interface.ts`, `lib/phone.ts`, `lib/date-range.ts`. Drop
-      `lib/reservation-status.ts` (hotel check-in/out concept doesn't apply) and
-      `guards/roles.guard.ts` + `decorators/roles.decorator.ts` (no multi-role system —
-      revisit only if we ever add an ops role).
-- [ ] Set up `.env` for `apps/api`: `DATABASE_URL`, `AMADEUS_CLIENT_ID/SECRET` (+ the
-      `travel.api.amadeus.com` host override — see amadeus-auth notes below),
-      `JWT_SECRET`/`JWT_REFRESH_SECRET`, `CELO_RPC_URL`, `ESCROW_CONTRACT_ADDRESS`,
-      `CUSD_TOKEN_ADDRESS`, `OPERATOR_PRIVATE_KEY`, `TREASURY_ADDRESS`.
+- [x] ~~Add `packages/*` to `pnpm-workspace.yaml`~~ — skipped. No shared types package was
+      created; `apps/api` and `apps/web` each define their own local types for now. Revisit
+      only once real duplication shows up (e.g. once Phase 2/6 both need the same
+      `FlightOffer` shape).
+- [x] Scaffolded `apps/api` as a NestJS project, matching adryxflight's dependency set minus
+      `stripe`/`cloudinary`/`resend`/`bcryptjs`/`amadeus` (those come back in Phase 2/5), plus
+      `siwe` + `ethers` (SIWE signature verification). `@nestjs/schedule` was left out too —
+      add it back in Phase 3 when the abandoned-booking cleanup cron needs it.
+- [x] Copied `adryxflight/apps/api/prisma/schema.prisma` and trimmed it — see "Schema plan"
+      below for what actually shipped vs. what was planned.
+- [x] **Local dev database provisioned via `npx prisma dev -n my-celo-app --db-port 5434 -d`**
+      (Prisma's own local Postgres, no Docker/system service needed — matches the approach
+      referenced in adryxflight's own `.env`). `db push` runs clean against it. A real hosted
+      Postgres (Render/Neon/Supabase) is still needed before this goes anywhere near
+      production — this is dev-only.
+- [x] Copied `common/` guards/decorators/interfaces/lib as planned, with two adjustments:
+      `lib/date-range.ts` was skipped (hotel-only, not needed yet) and `lib/phone.ts` was
+      **generalized to international E.164 validation** instead of Nigeria-only —
+      MiniPay's user base isn't Nigeria-specific the way adryxflight's is.
+- [x] `.env` set up for the Phase 0/1 subset (`DATABASE_URL`, `JWT_ACCESS_SECRET`,
+      `JWT_REFRESH_SECRET`, `CORS_ORIGINS`, `SIWE_DOMAIN`, `SIWE_URI`, `PORT=4100` — distinct
+      from adryxflight's API on 4000). Amadeus/Celo/escrow vars are documented in
+      `.env.example` but commented out until Phase 2/4/5 actually consume them.
 
 ### Prisma schema plan
 
@@ -104,29 +109,65 @@ gateway webhooks — confirmation is an RPC receipt check, not a webhook),
 enums (`ListerVerificationStatus`, `ListerBusinessType`, `IdDocumentType`, `PayoutStatus`,
 `LedgerBookOwnerType`, `PropertyType`, `PropertyStatus`, `TaxValueType`).
 
+**What actually shipped, differing from the plan above:**
+
+- `DiscountCode` was **dropped**, not kept — nothing consumes it yet; add back in Phase 3 if
+  promo codes turn out to be in scope.
+- `User` also dropped `suspendedAt` and `Role` entirely (not just de-scoped to `CUSTOMER`) —
+  no admin surface exists yet to ever set either one. Trivial to add back once Phase 7's ops
+  mechanism needs it.
+- `Booking.assignedAdminId`/`assignedAdmin` dropped too, same reason (no admin panel).
+- `Payment` is **one-to-one** with `Booking` (`Booking.payment`, not `payments: Payment[]`) —
+  the escrow contract's `deposit()` only ever accepts one deposit per `bookingIdHash` (reverts
+  on a second call), so unlike Stripe/Paystack retries-mint-a-new-row, there's naturally only
+  ever one Payment row per booking here.
+- Default `currency` on `Booking` is `"USD"`, not `"NGN"` — no Naira-specific pricing in this
+  app.
+
 ---
 
-## Phase 1 — Auth (SIWE)
+## Phase 1 — Auth (SIWE) ✅ done
 
-- [ ] `POST /auth/nonce` — given a wallet address, return a one-time nonce to embed in the
-      SIWE message (prevents replay).
-- [ ] `POST /auth/verify` — client sends back the signed SIWE message; backend verifies the
-      signature (recovers the address, checks it matches, checks the nonce), upserts a `User`
-      by `walletAddress`, issues access + refresh JWT (reuse adryxflight's
-      `auth/lib/tokens.ts` pattern and `RefreshToken` rotation as-is).
-  - Recommend the `siwe` npm package for message construction/verification rather than
-    hand-rolling signature recovery.
-- [ ] `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`, `PATCH /auth/me` — copy
-      from adryxflight largely as-is (these don't care whether the identity came from a
-      password or a wallet signature).
-- [ ] Drop `register`, `login`, `forgot-password`, `reset-password`, `verify-email/*`,
-      `verify-phone/*`, `exchange-code`, `exchange`.
-- [ ] Frontend: on load, if `window.ethereum.isMiniPay`, auto-connect (already wired in
-      `wallet-provider.tsx`) and immediately kick off the nonce → sign → verify flow with no
-      user-visible "Connect Wallet" button (MiniPay's own docs are explicit that the connect
-      button should be hidden inside MiniPay — the connection is implicit there). Outside
-      MiniPay (e.g. a browser during dev), fall back to RainbowKit's connect modal, already
-      present via `connect-button.tsx`.
+- [x] `GET /auth/nonce` — no request body needed (a SIWE nonce isn't bound to an address at
+      issuance); returns a fresh nonce from an in-memory, TTL'd store (5 min). Single-instance
+      only for now — move to Redis/DB if this ever runs horizontally scaled.
+- [x] `POST /auth/verify` — built on the official `siwe` npm package (v3, backed by `ethers`
+      for signature recovery) rather than hand-rolling it. Verifies signature + domain, checks
+      and single-use-consumes the nonce, upserts `User` by lowercased `walletAddress`, issues
+      the same access+refresh JWT pair adryxflight uses (`RefreshToken` rotation, reuse
+      detection that revokes the whole session family — copied byte-for-byte).
+- [x] `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`, `PATCH /auth/me` — copied
+      from adryxflight, with `suspendedAt`/role checks removed (fields no longer exist).
+      `PATCH /auth/me` also accepts `email` now (a plain contact field here, not a login
+      identifier, so it's editable — unlike adryxflight where it's immutable).
+- [x] Dropped `register`/`login`/`forgot-password`/`reset-password`/`verify-email`/
+      `verify-phone`/`exchange-code`/`exchange` as planned.
+- [x] Frontend (`wallet-provider.tsx`): the MiniPay auto-connect effect was already scaffolded;
+      added a second effect that runs the nonce → build `SiweMessage` → `signMessageAsync` →
+      `POST /auth/verify` flow whenever a wallet is connected without a session already
+      matching that address, storing the result in a new `zustand` store
+      (`lib/auth-store.ts`, persisted to localStorage, session fields only — `isSigningIn` is
+      excluded from persistence). `lib/api-client.ts` adds a fetch wrapper that retries once
+      through `/auth/refresh` on a 401. Session clears automatically on wallet disconnect.
+- [x] Fixed two pre-existing scaffold bugs while wiring this: `navbar.tsx` referenced an
+      undefined `WalletConnectButton` (should've been the imported `ConnectButton`) in both
+      the mobile drawer and desktop nav; and `next build` failed outright because
+      `@rainbow-me/rainbowkit` → `@wagmi/connectors`' Base Account connector transitively pulls
+      in `@coinbase/cdp-sdk`, which statically references five `@x402/*` submodules that
+      aren't installed. Aliased them to `false` in `next.config.js` (same pattern already used
+      there for the MetaMask async-storage dep) since this app only configures the injected
+      wallet connector and never touches Base Account/x402.
+- [x] Verified for real: a Node script built a `SiweMessage`, signed it with a real
+      `ethers.Wallet`, and drove `/auth/nonce` → `/auth/verify` → `/auth/me` → nonce-replay
+      (rejected) → `/auth/refresh` → reused-old-refresh-token (rejected, session family
+      revoked) → `/auth/me` PATCH against the live running API — all passed. `tsc --noEmit`,
+      `eslint`, and `next build` are clean on both `apps/api` and `apps/web`.
+  - **Not verified**: the actual in-browser wallet-popup interaction (clicking "Connect
+    Wallet", approving the `personal_sign` prompt) — no browser-automation tool was available
+    this session. The wiring is typechecked, linted, and built successfully, and mirrors the
+    exact request/response shape already proven against the live API, but a real
+    MiniPay/RainbowKit click-through hasn't been exercised. Worth a manual pass (or a
+    Playwright check in a future session) before calling Phase 1 fully closed.
 
 ---
 
