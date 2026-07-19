@@ -1,5 +1,7 @@
 import type { CabinClass, TripType } from '../../../generated/prisma/client';
 
+export type { CabinClass, TripType };
+
 export interface FlightSearchSegmentInput {
   origin: string;
   destination: string;
