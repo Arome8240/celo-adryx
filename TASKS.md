@@ -307,36 +307,66 @@ enums (`ListerVerificationStatus`, `ListerBusinessType`, `IdDocumentType`, `Payo
 
 ---
 
-## Phase 5 — Payments module (new, replacing Stripe/Paystack entirely)
+## Phase 5 — Payments module ✅ done, verified end-to-end on a local chain
 
-This is not a gateway swap — the whole request/response shape changes from "redirect to a
-hosted checkout page + webhook" to "read a transaction receipt off the chain."
+**Network decision**: built and configured against **Celo mainnet** (chainId 42220,
+`CELO_RPC_URL=https://forno.celo.org`, mainnet cUSD address) per explicit instruction —
+Phase 4's original "testnet first" plan was skipped for the *network target*. Actual
+deployment/operation still needs real values this session doesn't have and shouldn't invent:
+a funded mainnet deployer + operator key, and a real treasury address. `ESCROW_CONTRACT_ADDRESS`,
+`OPERATOR_PRIVATE_KEY`, and `TREASURY_ADDRESS` are left blank in `.env`/`.env.example` — never
+filled with placeholders.
 
-- [ ] `POST /payments/bookings/:id/initiate` — returns `{ contractAddress, tokenAddress,
-      amount, bookingIdHash }`. No redirect URL. The frontend uses this to drive an
-      ERC20 `approve` + the contract's `deposit` call directly from the customer's connected
-      wallet (wagmi `useWriteContract`).
-- [ ] `POST /payments/bookings/:id/confirm` — body is `{ txHash }`. Backend:
-  1. Fetches the receipt via `viem`'s public client against `CELO_RPC_URL`.
-  2. Confirms `status === 'success'`, `to === ESCROW_CONTRACT_ADDRESS`.
-  3. Decodes the `Deposited` log and checks `bookingIdHash`/`amount` match what was quoted.
-  4. Marks `Payment` `SUCCEEDED` with `depositTxHash` recorded, then calls the contract's
-     `release()` from the operator wallet and records `releaseTxHash`.
-  - No polling loop needed the way `bookings/[id]/pay/return/page.tsx` currently polls a
-    payment-gateway webhook fast-path — a confirmed receipt is final immediately, so this can
-    be a single call once the frontend's wagmi hook reports the deposit tx is mined.
-- [ ] `POST /payments/bookings/:id/refund` (admin/ops-triggered, see Phase 7) — calls the
-      contract's `refund()`, records `refundTxHash`.
-- [ ] Drop `gateways/stripe.gateway.ts`, `gateways/paystack.gateway.ts`,
-      `interfaces/payment-gateway.interface.ts` (redirect/webhook-shaped, doesn't fit
-      on-chain verification), `saved-payment-methods.*`, `payouts.*`, `ledger.service.ts`.
-      Remove the `stripe` npm dependency.
-- [ ] Open question to settle during implementation, not now: if `release()` has already
-      moved funds to treasury by the time a cancellation comes in, `refund()` on the
-      contract no longer has anything to send back (funds aren't in escrow anymore). Either
-      add a hold window before auto-releasing, or have the treasury-side refund be a manual
-      ERC20 transfer outside the contract. Don't design this further until Phase 4/5 are
-      actually being built.
+- [x] `CeloService` (`apps/api/src/payments/celo.service.ts`) — owns the viem public/wallet
+      clients, lazily configured (same reasoning as `AmadeusAuthService`: the app boots fine
+      without these vars set; only an actual payment call needs them). Exposes
+      `bookingIdHash()`, `toTokenAmount()` (USD cents → 18-decimal token wei),
+      `getTransactionReceipt()`, `decodeDepositedLogs()`, `getEscrow()`, `release()`, `refund()`.
+      ABI is hand-written (`lib/flight-escrow-abi.ts`) — just the surface actually
+      called/decoded, kept in sync by hand with `FlightEscrow.sol` since the two packages
+      don't share a build step.
+- [x] `POST /payments/bookings/:id/initiate` — returns `{ contractAddress, tokenAddress,
+      amount, bookingIdHash }` (no redirect URL). Idempotent: calling it again for the same
+      booking returns the same quote rather than creating a second `Payment` row (the 1:1
+      `Booking.payment` relation makes this natural). Rejects if the booking has no flight
+      reservation yet, isn't in USD, or is already `SUCCEEDED`.
+- [x] `POST /payments/bookings/:id/confirm` — verifies the receipt (`status === 'success'`,
+      `to === escrowContractAddress`, decodes the `Deposited` log and checks
+      `bookingIdHash`/`amount` match), records `depositTxHash`, then calls `release()` and
+      records `releaseTxHash` + flips `Booking.status` to `CONFIRMED`. Retriable: if
+      verification already happened but `release()` itself failed, calling again skips
+      re-verification and just retries the release.
+- [x] `POST /payments/bookings/:id/refund` — gated by a new `OpsSecretGuard`
+      (`common/guards/ops-secret.guard.ts`, shared-header check against `OPS_SECRET`) rather
+      than a real admin role, pulling forward a small piece of Phase 7 since Phase 5 needs
+      somewhere to call `refund()` from. **Resolves the open question below**: refuses with a
+      clear 400 if the payment is already `SUCCEEDED` ("already released to the treasury —
+      requires a manual treasury transfer, not this endpoint") rather than attempting (and
+      failing on-chain) or silently no-op'ing.
+- [x] No Stripe/Paystack gateway files ever existed in this app to remove (Phase 0 already
+      built the schema/DTOs without them) — this bullet from the original plan was already
+      satisfied by construction.
+- [x] **Open question resolved**: `refund()` only ever works pre-release (both the contract's
+      own `Deposited`-only `require` and now the service-level check above enforce this). A
+      refund after release is explicitly out of automated scope — it needs a manual
+      treasury-side transfer, which this backend deliberately does not attempt since it
+      doesn't hold the treasury's key.
+- [x] **Verified end-to-end against a local Hardhat network** (not real mainnet — no funded
+      key/contract exists yet, see above). Fixed a real bug during this: `hardhat node`'s
+      accounts aren't exposed as raw private keys through `hre.viem` (the node signs for its
+      own accounts), so `apps/contracts/scripts/deploy-local.ts` (a new, reusable local-only
+      deploy helper — never point it at mainnet/Sepolia, it deploys a fake token) hardcodes
+      the well-known Hardhat default-mnemonic keys for the accounts it needs.
+      Full real flow exercised: SIWE login → real Amadeus search/booking (Turkish Airlines,
+      IST→LHR, real PNR issued) → `initiate` → customer wallet `approve`+`deposit` on the
+      locally-deployed `FlightEscrow` → `confirm` → verified the treasury's on-chain balance
+      increased by exactly the expected amount, `Booking.status` reached `CONFIRMED`. Then
+      confirmed refund-after-release is correctly rejected (400), and — via a direct DB write
+      to reach the "deposit verified, not yet released" state confirm() doesn't leave lying
+      around in practice — that a genuine pre-release refund correctly returns funds to the
+      customer's wallet (balance restored by exactly the deposited amount) and flips
+      `Booking.status` to `CANCELLED`. All test data cleaned up afterward; the real
+      mainnet-configured `.env` was backed up before the local swap and restored after.
 
 ---
 
