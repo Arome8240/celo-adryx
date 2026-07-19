@@ -68,8 +68,7 @@ export function normalizeAmadeusOffer(
 
   const cabin =
     (raw.travelerPricings?.[0]?.fareDetailsBySegment?.[0]?.cabin as
-      | CabinClass
-      | undefined) ?? requestedCabin;
+      CabinClass | undefined) ?? requestedCabin;
 
   return {
     id: raw.id,

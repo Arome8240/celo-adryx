@@ -144,7 +144,9 @@ export class FlightsService {
       select: { iataCode: true, countryCode: true },
     });
     if (airports.length !== codes.length) return false;
-    const countryCodes = new Set(airports.map((airport) => airport.countryCode));
+    const countryCodes = new Set(
+      airports.map((airport) => airport.countryCode),
+    );
     return countryCodes.size === 1;
   }
 

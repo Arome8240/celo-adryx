@@ -131,7 +131,8 @@ export class BookingsService {
           cabinClass: pricedOffer.cabinClass,
           offerSnapshot: pricedOffer as unknown as Prisma.InputJsonValue,
           contactEmail: dto.contactEmail,
-          contactPhone: normalizePhoneNumber(dto.contactPhone) ?? dto.contactPhone,
+          contactPhone:
+            normalizePhoneNumber(dto.contactPhone) ?? dto.contactPhone,
           amadeusOrderId: order.orderId,
           pnr: order.pnr,
         },
