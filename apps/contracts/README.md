@@ -60,19 +60,39 @@ pnpm deploy:celo
 
 ## 📁 Project Structure
 
-```
-contracts/          # Smart contract source files
-├── Lock.sol        # Sample timelock contract
+```text
+contracts/                 # Smart contract source files
+├── FlightEscrow.sol        # Holds a customer's cUSD deposit per booking until release()/refund()
+└── mocks/
+    └── MockERC20.sol       # Test-only stand-in for cUSD
 
-test/              # Contract tests
-├── Lock.ts        # Tests for Lock contract
+test/                      # Contract tests
+└── FlightEscrow.ts         # Full lifecycle: deposit, release, refund, and every reject path
 
-ignition/          # Deployment scripts
+ignition/                  # Deployment scripts
 └── modules/
-    └── Lock.ts    # Lock contract deployment
+    └── FlightEscrow.ts     # FlightEscrow deployment — takes tokenAddress/treasuryAddress/
+                             # adminAddress/operatorAddress as required --parameters
 
-hardhat.config.ts  # Hardhat configuration
-tsconfig.json      # TypeScript configuration
+hardhat.config.ts          # Hardhat configuration
+tsconfig.json               # TypeScript configuration
+```
+
+## 🔒 FlightEscrow
+
+One deposit per booking (`bookingIdHash = keccak256(bytes(bookingId))`, computed identically
+by the backend). `deposit()` is open to any wallet; `release()` (→ treasury) and `refund()`
+(→ original payer) are restricted to an `OPERATOR_ROLE` address distinct from the
+`DEFAULT_ADMIN_ROLE` that can update the treasury address. See `apps/api`'s Phase 5 payments
+module for how the backend drives this.
+
+Deploy with explicit parameters (no defaults — a real deploy should never silently fall back
+to a placeholder address):
+
+```bash
+npx hardhat ignition deploy ignition/modules/FlightEscrow.ts \
+  --network celo-sepolia \
+  --parameters '{"FlightEscrowModule":{"tokenAddress":"0x...","treasuryAddress":"0x...","adminAddress":"0x...","operatorAddress":"0x..."}}'
 ```
 
 ## 🔐 Security Notes

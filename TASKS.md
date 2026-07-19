@@ -251,30 +251,59 @@ enums (`ListerVerificationStatus`, `ListerBusinessType`, `IdDocumentType`, `Payo
 
 ---
 
-## Phase 4 — Escrow contract (`apps/contracts`)
+## Phase 4 — Escrow contract (`apps/contracts`) ✅ done (pre-testnet)
 
-- [ ] Replace the sample `Lock.sol` with `FlightEscrow.sol`:
-  - `deposit(bytes32 bookingIdHash, uint256 amount)` — `transferFrom(msg.sender, address(this), amount)`
-    on the configured ERC20 (cUSD); reverts if a deposit already exists for that hash; emits
+- [x] Fixed a **pre-existing bug in the scaffold** before anything else could even compile:
+      `hardhat.config.ts` had unquoted hyphenated object keys (`celo-sepolia: {...}` instead of
+      `"celo-sepolia": {...}`) in both the `networks` and `etherscan.apiKey` blocks — invalid
+      TS/JS object-literal syntax, so `hardhat compile` failed outright with parse errors
+      before this session touched a single contract file.
+- [x] Replaced the sample `Lock.sol` with `FlightEscrow.sol`:
+  - `deposit(bytes32 bookingIdHash, uint256 amount)` — pulls the ERC20 via `SafeERC20`;
+    reverts if a deposit already exists for that hash (also blocks re-depositing after
+    release/refund, since those are separate, non-`None` statuses); emits
     `Deposited(bookingIdHash, payer, amount)`.
-  - `release(bytes32 bookingIdHash)` — `onlyOperator`; requires state `Deposited`; transfers
-    to the treasury address; emits `Released`.
-  - `refund(bytes32 bookingIdHash)` — `onlyOperator`; requires state `Deposited`; transfers
-    back to the original payer; emits `Refunded`.
-  - Use OpenZeppelin `AccessControl` (already a dependency) for an `OPERATOR_ROLE` distinct
-    from the contract owner/admin, and `ReentrancyGuard` on all three token-moving functions.
-  - `bookingIdHash = keccak256(bytes(bookingId))` computed identically on both sides (backend
-    when verifying a deposit, contract when indexing it) so a Prisma cuid string maps
-    deterministically to the on-chain key.
-- [ ] Write Hardhat tests for the full lifecycle (deposit → release, deposit → refund,
-      double-deposit rejected, release/refund by non-operator rejected, release/refund on an
-      undeposited hash rejected) before this goes anywhere near mainnet funds.
-- [ ] Deploy to Celo Sepolia first (`pnpm contracts:deploy:celo-sepolia`, networks already
-      configured in `hardhat.config.ts`); only promote to `pnpm contracts:deploy:celo` once
-      the full booking→pay→release flow has been exercised end-to-end on testnet.
-- [ ] cUSD addresses: mainnet `0x765DE816845861e75A25fCA122bb6898B8B1282a`. Confirm the Celo
-      Sepolia cUSD address from `docs.celo.org/tooling/contracts/token-contracts` before
-      testnet deployment — didn't come back cleanly in search and needs a direct check.
+  - `release(bytes32 bookingIdHash)` — `onlyRole(OPERATOR_ROLE)`; requires `Deposited`;
+    transfers to `treasury`; emits `Released`.
+  - `refund(bytes32 bookingIdHash)` — `onlyRole(OPERATOR_ROLE)`; requires `Deposited`;
+    transfers back to the original payer; emits `Refunded`.
+  - `setTreasury(address)` — `onlyRole(DEFAULT_ADMIN_ROLE)` only; the operator role
+    deliberately cannot redirect where released funds go.
+  - OpenZeppelin `AccessControl` (`OPERATOR_ROLE` distinct from `DEFAULT_ADMIN_ROLE`) +
+    `ReentrancyGuard` on all three token-moving functions, plus checks-effects-interactions
+    (status is finalized before the external token transfer) as defense in depth.
+  - `bookingIdHash = keccak256(bytes(bookingId))`, computed identically on both sides.
+  - Constructor takes `(tokenAddress, treasuryAddress, admin, operator)` — all four checked
+    non-zero-address at deploy time.
+- [x] `contracts/mocks/MockERC20.sol` — a minimal mintable ERC20 for tests, clearly separated
+      from the real contract and never deployed to a real network.
+- [x] Full Hardhat test suite (`test/FlightEscrow.ts`, viem-style, matching the existing
+      toolbox convention) — **19 tests, all passing**: deployment + zero-address rejection for
+      each of the 4 constructor args, deposit (success, double-deposit rejected, zero-amount
+      rejected, missing-approval rejected), release (success + moves funds to treasury,
+      non-operator rejected, undeposited hash rejected, double-release rejected), refund
+      (success + returns funds to payer, non-operator rejected, undeposited hash rejected,
+      refund-after-release rejected), and `setTreasury` (admin succeeds, operator/others
+      rejected).
+- [ ] **Not yet done**: actual deployment to Celo Sepolia. The Ignition module
+      (`ignition/modules/FlightEscrow.ts`) is written and takes `tokenAddress`/
+      `treasuryAddress`/`adminAddress`/`operatorAddress` as required `--parameters` (no
+      fallback defaults — a real deploy should never silently pick up a placeholder address).
+      Deploying needs a funded Sepolia deployer key and real treasury/operator addresses,
+      none of which exist yet — do this once Phase 5 is ready to actually integrate against a
+      live contract address, not before.
+- [ ] cUSD addresses: mainnet `0x765DE816845861e75A25fCA122bb6898B8B1282a` (verified via
+      CeloScan). The Celo Sepolia cUSD address still hasn't been confirmed — check
+      `docs.celo.org/tooling/contracts/token-contracts` directly before testnet deployment.
+- [ ] `tsc --noEmit` on `apps/contracts` reports real errors on the new test file (missing
+      `chai-as-promised` type declarations, `hre.viem` contract-name overloads not resolving
+      outside Hardhat's own compile/test pipeline) — **pre-existing across the whole scaffold**,
+      not introduced here: the deleted `Lock.ts` used the exact same assertion patterns, no
+      `@types/chai-as-promised` was ever a dependency, and this package has no `typecheck`
+      script of its own (unlike `apps/api`/`apps/web`). `hardhat compile` and `hardhat test`
+      are this package's real correctness gates, and both are clean. Worth adding
+      `@types/chai-as-promised` at some point for better editor feedback, but it's a
+      pre-existing gap, not a regression from this phase.
 
 ---
 
