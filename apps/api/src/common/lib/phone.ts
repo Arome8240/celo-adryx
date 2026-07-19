@@ -16,3 +16,15 @@ export function normalizePhoneNumber(input: string): string | null {
   const parsed = parsePhoneNumberFromString(input);
   return parsed?.isValid() ? parsed.number : null;
 }
+
+/** Splits into Amadeus's expected {countryCallingCode, number} shape (e.g. "234" / "8012345678"), or null if invalid. */
+export function splitPhoneNumber(
+  input: string,
+): { countryCallingCode: string; number: string } | null {
+  const parsed = parsePhoneNumberFromString(input);
+  if (!parsed?.isValid()) return null;
+  return {
+    countryCallingCode: parsed.countryCallingCode,
+    number: parsed.nationalNumber,
+  };
+}
