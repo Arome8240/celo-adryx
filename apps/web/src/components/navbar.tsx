@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { ConnectButton } from "@/components/connect-button"
+import { useAuthStore } from "@/lib/auth-store"
 
 const navLinks = [
   { name: "Home", href: "/" },
@@ -20,7 +21,8 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname()
-  
+  const isSigningIn = useAuthStore((s) => s.isSigningIn)
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4">
