@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Request } from 'express';
 
 /**
  * The single "is this ops, not a customer" check for the small set of
@@ -23,7 +24,7 @@ export class OpsSecretGuard implements CanActivate {
       throw new UnauthorizedException('Ops endpoints are not configured');
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<Request>();
     const provided = request.headers['x-ops-secret'];
     if (provided !== expected) {
       throw new UnauthorizedException('Invalid ops secret');
