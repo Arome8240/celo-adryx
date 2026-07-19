@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { FlightsModule } from './flights/flights.module';
 import { HealthModule } from './health/health.module';
+import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -31,6 +32,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     FlightsModule,
     BookingsModule,
+    PaymentsModule,
     HealthModule,
   ],
   controllers: [AppController],
