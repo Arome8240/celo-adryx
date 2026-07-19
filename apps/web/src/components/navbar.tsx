@@ -93,6 +93,9 @@ export function Navbar() {
           ))}
           
           <div className="flex items-center gap-3">
+            {isSigningIn && (
+              <span className="text-sm text-muted-foreground">Signing in…</span>
+            )}
             <ConnectButton />
           </div>
         </nav>
