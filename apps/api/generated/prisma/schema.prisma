@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Identity is the customer's connected wallet, verified via Sign-In-With-Ethereum
+/// (see auth.service.ts) — there is no password. email/phone are optional contact
+/// fields for booking confirmations, not credentials.
+model User {
+  id             String          @id @default(cuid())
+  walletAddress  String          @unique
+  email          String?
+  phone          String?
+  firstName      String?
+  lastName       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  refreshTokens  RefreshToken[]
+  bookings       Booking[]
+  savedTravelers SavedTraveler[]
+}
+
+/// A refresh token is a distinct, hashed, revocable credential, rotated on every
+/// use — a stolen, already-used refresh token is detectable (reuse revokes the
+/// whole session family). Same pattern as adryxflight's auth module.
+model RefreshToken {
+  id                  String    @id @default(cuid())
+  userId              String
+  tokenHash           String    @unique
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  replacedByTokenHash String?
+  createdAt           DateTime  @default(now())
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Booking {
+  id                  String         @id @default(cuid())
+  userId              String
+  status              BookingStatus  @default(PENDING)
+  currency            String         @default("USD")
+  subtotalAmountMinor Int            @default(0)
+  taxAmountMinor      Int            @default(0)
+  totalAmountMinor    Int
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flightBooking       FlightBooking?
+  payment             Payment?
+
+  @@index([userId])
+}
+
+model FlightBooking {
+  id             String      @id @default(cuid())
+  bookingId      String      @unique
+  tripType       TripType
+  cabinClass     CabinClass
+  /// Snapshot of the priced Amadeus offer at booking time — an audit trail,
+  /// never re-derived from a mutable cache after this point.
+  offerSnapshot  Json
+  contactEmail   String
+  contactPhone   String
+  /// The real Amadeus order, created at booking time (Flight Create Orders) —
+  /// before any on-chain payment exists. Both null only if order creation failed.
+  amadeusOrderId String?
+  pnr            String?
+  createdAt      DateTime    @default(now())
+  booking        Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  passengers     Passenger[]
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+/// Passenger type is stored explicitly per row, never inferred from array position.
+model Passenger {
+  id                     String        @id @default(cuid())
+  flightBookingId        String
+  type                   PassengerType
+  title                  String
+  firstName              String
+  lastName               String
+  gender                 Gender
+  dateOfBirth            DateTime      @db.Date
+  /// 2-letter ISO country code — normalized entirely on the frontend, never here.
+  nationality            String
+  documentType           DocumentType
+  documentNumber         String
+  /// Amadeus requires expiry + issuing country for every document type, not just passports.
+  documentExpiry         DateTime      @db.Date
+  documentIssuingCountry String
+  flightBooking          FlightBooking @relation(fields: [flightBookingId], references: [id], onDelete: Cascade)
+
+  @@index([flightBookingId])
+}
+
+/// Saved travelers so a returning customer doesn't retype every companion's
+/// details on every booking.
+model SavedTraveler {
+  id                     String       @id @default(cuid())
+  userId                 String
+  title                  String
+  firstName              String
+  lastName               String
+  dateOfBirth            DateTime     @db.Date
+  nationality            String
+  documentType           DocumentType
+  documentNumber         String
+  documentExpiry         DateTime     @db.Date
+  documentIssuingCountry String
+  createdAt              DateTime     @default(now())
+  user                   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Airport {
+  id          String @id @default(cuid())
+  iataCode    String @unique
+  name        String
+  city        String
+  country     String
+  countryCode String
+  latitude    Float?
+  longitude   Float?
+
+  @@index([city])
+}
+
+/// On-chain escrow payment for a booking. One row per Booking — a customer
+/// pays once per booking; see apps/contracts/contracts/FlightEscrow.sol.
+model Payment {
+  id                  String        @id @default(cuid())
+  bookingId           String        @unique
+  status              PaymentStatus @default(PENDING)
+  chainId             Int
+  tokenAddress        String
+  amountMinor         Int
+  currency            String
+  /// keccak256(bookingId) — the key the escrow contract indexes deposits on.
+  escrowBookingIdHash String        @unique
+  depositTxHash       String?       @unique
+  releaseTxHash       String?
+  refundTxHash        String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  booking             Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum TripType {
+  ONE_WAY
+  ROUND_TRIP
+  MULTI_CITY
+}
+
+enum CabinClass {
+  ECONOMY
+  PREMIUM_ECONOMY
+  BUSINESS
+  FIRST
+}
+
+enum PassengerType {
+  ADULT
+  CHILD
+  INFANT
+}
+
+enum DocumentType {
+  NATIONAL_ID
+  PASSPORT
+}
