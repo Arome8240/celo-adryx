@@ -171,45 +171,83 @@ enums (`ListerVerificationStatus`, `ListerBusinessType`, `IdDocumentType`, `Payo
 
 ---
 
-## Phase 2 — Flights module (mostly a direct copy)
+## Phase 2 — Flights module (mostly a direct copy) ✅ done
 
-- [ ] Copy `flights/` wholesale: `flights.controller.ts`, `flights.service.ts`,
+- [x] Copied `flights/` — `flights.controller.ts`, `flights.service.ts`,
       `providers/amadeus-flight.provider.ts`, `providers/amadeus-auth.service.ts`,
-      `types/amadeus.d.ts`, `dto/*`, `lib/*`.
-- [ ] Reuse the DNS fix as-is: explicit `host: 'travel.api.amadeus.com'` /
-      `'test.travel.api.amadeus.com'` override alongside `hostname` in
-      `amadeus-auth.service.ts` — the SDK's default hostnames are DNS-dead in this
-      environment too.
-- [ ] Same sandbox caveat applies: only major carriers are sellable via Flight Create Orders
-      in the Amadeus test environment; small regional carriers are search-only. Not a bug if
-      it recurs here.
+      `types/amadeus.d.ts`, `dto/*`, `lib/*` — largely verbatim.
+- [x] Reused the DNS fix as-is: explicit `host` override alongside `hostname` in
+      `amadeus-auth.service.ts`. Confirmed still necessary and still working here too.
+- [x] `currencyCode` in both Amadeus search calls changed from adryxflight's hardcoded
+      `'NGN'` to `'USD'`, matching this app's `Booking.currency` default — there's no single
+      home currency here the way adryxflight has Naira.
+- [x] No shared `@adryx/types` package (Phase 0 decision) — `FlightOffer`/`FlightItinerary`/
+      `AirportSummary`/etc. live in a new local `flights/types/flight.types.ts`, and
+      `TripType`/`CabinClass` are imported straight from the generated Prisma client (re-exported
+      from that same file) instead of being redefined — one less place for the enum value lists
+      to drift from the schema.
+- [x] `AirportSummary`/`Airport` dropped adryxflight's `isNigerian` boolean. The
+      domestic-vs-international document-requirement check (`isDomesticOffer`) is now
+      **country-agnostic**: domestic = every airport in the itinerary shares the same
+      `countryCode`, not "every airport is in Nigeria" — this app has no single home country.
+      `searchAirports`'s result ordering dropped the `isNigerian`-first sort for the same reason
+      (now just `city asc`).
+- [x] Seeded `Airport` from adryxflight's curated dataset (34 Nigerian + international-hub
+      airports), stripped of `isNigerian`, plus 4 added hubs for other Celo/MiniPay markets
+      (Nairobi NBO, Entebbe EBB, Dar es Salaam DAR, Kigali KGL) — see
+      `prisma/seed/index.ts`/`prisma/seed/airports.ts`. Still Nigeria-heavy for *domestic*
+      coverage specifically; expand as real usage from other markets shows up.
+- [x] Reused the same Amadeus test/sandbox credentials already configured for local dev in
+      the adryxflight project (same developer account, test environment only) so this could
+      actually be exercised end-to-end rather than left unverified.
+- [x] Same sandbox caveat applies and was reproduced here too: Ibom Air (QI) — the only
+      carrier on the LOS→ABV domestic route in this test environment — is search-visible but
+      not sellable via Flight Create Orders. Not a bug; confirmed by successfully booking an
+      international Qatar Airways (QR) itinerary instead (see Phase 3's verification note).
 
 ---
 
-## Phase 3 — Bookings module (copy + trim)
+## Phase 3 — Bookings module (copy + trim) ✅ done
 
-- [ ] Copy `bookings.controller.ts` / `bookings.service.ts`, keep only the
-      `createFlightBooking` path — drop `createHotelBooking` and any hotel-specific
-      branching in `BOOKING_INCLUDE`.
-- [ ] Copy `travelers.controller.ts` / `travelers.service.ts` (saved travelers) as-is.
-- [ ] Copy `dto/create-flight-booking.dto.ts`, `dto/passenger.dto.ts`,
-      `dto/create-saved-traveler.dto.ts`, `dto/list-bookings-query.dto.ts` as-is — these
-      already encode the hard-won lessons from adryxflight (gender required; expiry +
-      issuing country required for *all* document types, not just passports; nationality
-      and issuing country are 2-letter ISO codes **enforced entirely on the frontend**, the
-      backend must not re-derive or normalize them).
-- [ ] Copy `discounts.controller.ts` / `discounts.service.ts` only if discount codes are
-      in scope for v1; otherwise skip.
-- [ ] Sequencing stays identical to adryxflight's already-working design: validate
-      passengers → price the offer with Amadeus → **create the Amadeus order (reserve the
-      PNR) before any payment exists** → persist the booking with `amadeusOrderId`/`pnr` →
-      only then does the frontend show a payment step. This is the one piece of the original
-      feature request ("reservation made on Amadeus once the user clicks confirm, not after
-      payment") that carries over unchanged.
-- [ ] Add a scheduled cleanup job (reuse the node-cron pattern already used elsewhere in
-      adryxflight) that cancels/expires bookings whose Amadeus order was created but no
-      escrow deposit ever arrived within some window (e.g. 30 minutes) — otherwise seats get
-      reserved with Amadeus indefinitely for abandoned checkouts.
+- [x] Copied `bookings.controller.ts`/`bookings.service.ts` — only the `createFlightBooking`
+      path exists; there's no `createHotelBooking` to drop since `HotelBooking` was never in
+      this schema (Phase 0). `BOOKING_INCLUDE` is `{ flightBooking: {...}, payment: true }` —
+      no hotel branch, and `payment` (singular — see Phase 0's schema note) instead of
+      `payments`.
+- [x] Copied `travelers.controller.ts`/`travelers.service.ts` as-is, minus the
+      "`documentExpiry` might be null" branch — it's a required field here.
+- [x] Copied `dto/create-flight-booking.dto.ts`, `dto/passenger.dto.ts`,
+      `dto/create-saved-traveler.dto.ts`, `dto/list-bookings-query.dto.ts` — gender/expiry/
+      issuing-country-required and frontend-only nationality normalization all carried over
+      unchanged. Two adaptations: `contactPhone` validation uses the generalized
+      `IsPhoneNumber` decorator (Phase 1) instead of `IsNigerianPhoneNumber`; and
+      `CreateSavedTravelerDto.documentExpiry`/`documentIssuingCountry` were **made required**
+      (adryxflight still has these optional on this one DTO specifically, inconsistent with
+      its own `PassengerDto` — this schema has no nullable column to accommodate that anyway).
+  - `discountCode` field dropped entirely from `CreateFlightBookingDto` — no discounts
+    controller/service exists (matches Phase 0's decision to drop `DiscountCode` outright,
+    not just de-scope it).
+  - `ListBookingsQueryDto` dropped its `type`/`BookingType` filter — there's only ever flight
+    bookings, so the field (and the `BookingType` enum itself) doesn't exist.
+- [x] Sequencing preserved exactly: validate passengers → price the offer with Amadeus →
+      **create the Amadeus order (reserve the PNR) before any payment exists** → persist the
+      booking with `amadeusOrderId`/`pnr`. No tax/discount computation — subtotal equals
+      total, `taxAmountMinor` is always 0 (no `TaxService`/`TaxRate`/jurisdiction concept
+      here; adryxflight's flat Nigerian VAT rate doesn't generalize to an app with no single
+      home country, and adding a real multi-jurisdiction tax model isn't justified yet).
+- [ ] **Deferred to Phase 5, not built now**: the abandoned-checkout cleanup cron. It only
+      makes sense once `Payment` rows actually get created (Phase 5) — built now, it would
+      either be a no-op or would wrongly cancel every booking, since nothing populates
+      `Payment` yet. `@nestjs/schedule` wasn't added to `apps/api` for the same reason.
+- [x] **Verified for real** against the live Amadeus test environment: signed in via SIWE,
+      searched LOS→ABV (domestic — only Ibom Air (QI) came back, reproducing the known
+      "search-visible, not sellable" sandbox limitation from adryxflight), then searched
+      LOS→IST (international) and booked a real Qatar Airways (QR) offer end-to-end — got
+      back a real `amadeusOrderId` and PNR (`8KK4VK`), with the passport requirement
+      correctly enforced (Nigeria→Turkey isn't domestic under the new country-agnostic
+      check). Also verified `GET /bookings/:id`, `GET /bookings` (list + count), and
+      `GET /travelers` (the `saveTraveler: true` passenger came back as a saved traveler).
+      `tsc --noEmit` and `eslint` are clean.
 
 ---
 
