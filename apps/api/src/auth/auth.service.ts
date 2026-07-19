@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { generateNonce, SiweMessage } from 'siwe';
+import { generateNonce, SiweMessage, type SiweResponse } from 'siwe';
 import { normalizePhoneNumber } from '../common/lib/phone';
 import type { User } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -85,7 +89,7 @@ export class AuthService {
     }
 
     const expectedDomain = this.config.get<string>('SIWE_DOMAIN');
-    let result;
+    let result: SiweResponse;
     try {
       result = await siweMessage.verify({ signature, domain: expectedDomain });
     } catch {
@@ -182,9 +186,16 @@ export class AuthService {
 
   async updateProfile(
     userId: string,
-    input: { firstName?: string; lastName?: string; phone?: string; email?: string },
+    input: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      email?: string;
+    },
   ): Promise<SanitizedUser> {
-    const current = await this.prisma.user.findUnique({ where: { id: userId } });
+    const current = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
     if (!current) {
       throw new NotFoundException('User not found');
     }
@@ -192,7 +203,9 @@ export class AuthService {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
-        ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
+        ...(input.firstName !== undefined
+          ? { firstName: input.firstName }
+          : {}),
         ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
         ...(input.phone !== undefined
           ? { phone: normalizePhoneNumber(input.phone) }
