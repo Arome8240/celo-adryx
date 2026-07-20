@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
+import { BottomNav } from '@/components/bottom-nav';
 import { Navbar } from '@/components/navbar';
 import { WalletProvider } from "@/components/wallet-provider"
 
@@ -30,9 +31,10 @@ export default function RootLayout({
         <div className="relative flex min-h-screen flex-col">
           <WalletProvider>
             <Navbar />
-            <main className="flex-1">
+            <main className="flex-1 pb-16 sm:pb-0">
               {children}
             </main>
+            <BottomNav />
           </WalletProvider>
         </div>
       </body>
