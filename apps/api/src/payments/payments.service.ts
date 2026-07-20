@@ -11,6 +11,22 @@ import { CeloService } from './celo.service';
 
 export type PaymentAsset = 'USDM' | 'CELO';
 
+/**
+ * TEMPORARY (testing) — charge a fixed nominal amount instead of a
+ * booking's real price, so the on-chain payment flow can be exercised
+ * against real mainnet funds without actually charging real flight prices.
+ * The UI is unaffected: every displayed price (search results, booking
+ * form, booking detail totals) still comes straight from
+ * `booking.totalAmountMinor`, which is untouched — only the amount actually
+ * quoted/charged/verified in this file is overridden. To revert to real
+ * pricing: delete this block and use `this.celo.toTokenAmount(...)` /
+ * `this.celo.quoteNativeAmountForUsd(...)` again in `initiate()` and
+ * `verifyDeposit()` below (the real-pricing code path — including the
+ * live Mento quote — is untouched in CeloService, just unused for now).
+ */
+const TEST_FIXED_USDM_AMOUNT = 100_000_000_000_000_000n; // 0.1 USDm (18 decimals)
+const TEST_FIXED_CELO_AMOUNT = 1_000_000_000_000_000_000n; // 1 CELO (18 decimals)
+
 export interface InitiatePaymentResult {
   contractAddress: string;
   /** Null for the native-CELO path — there's no ERC20 token to approve. */
@@ -76,9 +92,8 @@ export class PaymentsService {
 
     const isNative = asset === 'CELO';
     const bookingIdHash = this.celo.bookingIdHash(bookingId);
-    const amount = isNative
-      ? await this.celo.quoteNativeAmountForUsd(booking.totalAmountMinor)
-      : this.celo.toTokenAmount(booking.totalAmountMinor);
+    // TEMPORARY (testing) — see the constants' doc comment above.
+    const amount = isNative ? TEST_FIXED_CELO_AMOUNT : TEST_FIXED_USDM_AMOUNT;
     const tokenAddress = isNative ? null : this.celo.tokenAddress;
 
     if (!booking.payment) {
