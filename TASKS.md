@@ -533,23 +533,37 @@ confirmed mainnet-only is intentional. Proceeding on that basis.
     browser-automation-tool limitation noted in Phase 6) — the wagmi call shapes match what's
     now proven correct server-side, but a real MiniPay/RainbowKit click-through with a real
     wallet hasn't been exercised.
-- [ ] **Mainnet deployment — blocked on inputs only the user can safely provide**:
-  - A mainnet deployer address, funded with real CELO for gas.
-  - A real treasury address (where `release()` sends confirmed payments).
-  - The operator address/key (the backend's hot wallet that calls `release()`/`refund()`) —
-    recommended the user generate this themselves via their own trusted tooling and hand over
-    only the *address* for the contract's constructor, then place the real private key
-    directly into the server's `.env` without it passing through this conversation. Generating
-    it here would work functionally identically, but a hot wallet with real fund-moving
-    authority is exactly the kind of secret that shouldn't have an unnecessary hop through an
-    AI assistant's session if it can be avoided.
-  - Once those exist: deploy `FlightEscrow` via `ignition/modules/FlightEscrow.ts --network
-    celo`, set `ESCROW_CONTRACT_ADDRESS`/`OPERATOR_PRIVATE_KEY`/`TREASURY_ADDRESS` in
-    `apps/api/.env`, and run the real search → book → deposit → confirm → release flow with
-    real (likely small-value, first-run) USDm/cUSD. Use Amadeus's test environment for the
-    flight side exactly as adryxflight does (small regional carriers are search-only, not
-    sellable — use a major carrier like Turkish Airlines) until Amadeus production
-    credentials are also in place.
+- [x] **Mainnet deployment — done.** The user provided a funded deployer key
+      (`0x86299D48002f3f19ad340d002391d9893F29a6f1`, confirmed ~6.59 CELO before deploying)
+      and chose to reuse that same address as admin, treasury, and operator (one key doing
+      all three jobs — a deliberate simplicity-over-separation tradeoff, flagged and
+      confirmed before proceeding).
+  - **Hardhat Ignition doesn't work against Celo mainnet** — hit a real provider
+    compatibility bug: `ProviderError: invalid argument 0: json: cannot unmarshal hex string
+    without 0x prefix into Go value of type common.Address`, coming from Ignition's
+    nonce-sync path (`getNonceSyncMessages` → `EIP1193JsonRpcClient.getTransactionCount`)
+    against Celo's Go-based node. Not a config or key problem — confirmed by testing the
+    exact same `eth_getTransactionCount` call directly against `forno.celo.org` via curl
+    (worked fine, both `"pending"`/`"latest"` tags, both single and batched requests) — the
+    bug is specifically in how Hardhat's `LocalAccountsProvider` re-serializes the address
+    somewhere in that call chain. **Worked around by deploying directly via viem**
+    (`walletClient.deployContract` against the compiled Hardhat artifact) instead of Ignition
+    — same approach already proven reliable all session for every other on-chain
+    interaction. `ignition/modules/FlightEscrow.ts` is still there and correct; it's Hardhat
+    Ignition's Celo-mainnet compatibility that's broken, worth revisiting if a future Hardhat
+    release fixes it, but not blocking.
+  - **Deployed contract**: `0xf3466c86a2c884427b0456a84bcd809fac5d4e77` on Celo mainnet.
+    Deploy tx `0x6cd3fae44ae23a32c66d973a42b7bb14023b85cc5ff8069f80e551b732be4f45` (gas used:
+    1,038,111). Verified post-deploy by reading the contract's own state back on-chain (not
+    just trusting a "success" status): `token()` = the real cUSD/USDm address, `treasury()` =
+    the expected address, `hasRole(DEFAULT_ADMIN_ROLE, ...)` and
+    `hasRole(OPERATOR_ROLE, ...)` both `true` for that same address.
+  - `apps/api/.env` updated with the real `ESCROW_CONTRACT_ADDRESS`, `OPERATOR_PRIVATE_KEY`,
+    `TREASURY_ADDRESS`. API rebuilt and restarted against it; health check confirms it's up.
+  - **Not yet done**: an actual real-money booking → deposit → confirm → release run through
+    this live contract. Deploying and verifying the deployment is not the same as exercising
+    a real payment against it — that's the natural next step whenever ready to test with real
+    funds (small-value, first-run, exactly as flagged when mainnet-only was decided).
 - [ ] MiniPay app-directory submission — check `docs.minipay.xyz` directly for current
       submission/listing requirements before that step; nothing manifest-file-shaped turned
       up in search, so distribution may just be a listing request rather than a manifest to
