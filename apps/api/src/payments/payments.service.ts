@@ -269,23 +269,18 @@ export class PaymentsService {
       );
     }
 
-    if (payment.isNative) {
-      const acceptable = await this.celo.isNativeAmountAcceptable(
-        payment.amountMinor,
-        match.amount,
+    // TEMPORARY (testing) — see the constants' doc comment at the top of
+    // this file. Real pricing would use `isNativeAmountAcceptable` (a
+    // tolerance check against a live quote, since CELO floats) for native
+    // and an exact match against `toTokenAmount(payment.amountMinor)` for
+    // USDm; both of those still exist in CeloService, just unused for now.
+    const expectedAmount = payment.isNative
+      ? TEST_FIXED_CELO_AMOUNT
+      : TEST_FIXED_USDM_AMOUNT;
+    if (match.amount !== expectedAmount) {
+      throw new BadRequestException(
+        `Deposited amount (${match.amount}) does not match the expected amount (${expectedAmount})`,
       );
-      if (!acceptable) {
-        throw new BadRequestException(
-          `Deposited CELO amount (${match.amount}) is too far from the current quoted price for this booking`,
-        );
-      }
-    } else {
-      const expectedAmount = this.celo.toTokenAmount(payment.amountMinor);
-      if (match.amount !== expectedAmount) {
-        throw new BadRequestException(
-          `Deposited amount (${match.amount}) does not match the expected amount (${expectedAmount})`,
-        );
-      }
     }
   }
 }
