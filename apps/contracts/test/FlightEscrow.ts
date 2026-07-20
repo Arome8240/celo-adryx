@@ -18,8 +18,8 @@ describe("FlightEscrow", function () {
       await hre.viem.getWalletClients();
 
     const token = await hre.viem.deployContract("MockERC20", [
-      "Mock cUSD",
-      "mUSD",
+      "Mock USDm",
+      "mUSDm",
     ]);
     await token.write.mint([payer.account.address, DEPOSIT_AMOUNT * 10n]);
 

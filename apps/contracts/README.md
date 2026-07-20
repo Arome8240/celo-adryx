@@ -62,9 +62,9 @@ pnpm deploy:celo
 
 ```text
 contracts/                 # Smart contract source files
-├── FlightEscrow.sol        # Holds a customer's cUSD deposit per booking until release()/refund()
+├── FlightEscrow.sol        # Holds a customer's USDm/cUSD deposit per booking until release()/refund()
 └── mocks/
-    └── MockERC20.sol       # Test-only stand-in for cUSD
+    └── MockERC20.sol       # Test-only stand-in for USDm/cUSD
 
 test/                      # Contract tests
 └── FlightEscrow.ts         # Full lifecycle: deposit, release, refund, and every reject path

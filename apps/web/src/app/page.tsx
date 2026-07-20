@@ -12,7 +12,7 @@ export default function Home() {
               Pay with your wallet
             </div>
             <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
-              Book flights, pay in <span className="text-primary">cUSD</span>
+              Book flights, pay in <span className="text-primary">USDm</span>
             </h1>
             <p className="text-lg text-muted-foreground">
               Search real flights and pay directly from your connected wallet — no cards,

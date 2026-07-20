@@ -6,7 +6,7 @@ A customer-only replica of adryxflight's flight search/booking experience, shipp
 MiniPay mini app on Celo. Same core flow (search → book → pay → PNR), but:
 
 - No lister/admin/hotel surfaces — flights only, customer-facing only.
-- No Stripe/Paystack — payment is an on-chain escrow deposit in cUSD, released to the
+- No Stripe/Paystack — payment is an on-chain escrow deposit in USDm, released to the
   company treasury once confirmed.
 - Identity is the customer's connected MiniPay wallet (Sign-In-With-Ethereum), not
   email/password.
@@ -18,7 +18,7 @@ MiniPay mini app on Celo. Same core flow (search → book → pay → PNR), but:
    name/DOB/passport/nationality etc. per booking, because Amadeus requires it — that's
    booking-form data, not account-credential data.
 2. **Payment: escrow smart contract**, not a direct wallet→merchant transfer. A Solidity
-   contract in `apps/contracts` holds the customer's cUSD deposit and records the booking
+   contract in `apps/contracts` holds the customer's USDm deposit and records the booking
    reference on-chain. A backend-held operator key calls `release()` (→ treasury) once the
    booking is confirmed, or `refund()` (→ customer) if it's cancelled/fails. This gives an
    auditable on-chain trail and real refund logic, at the cost of real contract-security work
@@ -96,7 +96,7 @@ my-celo-app/
   `chainId Int`, `tokenAddress String`, `depositTxHash String? @unique`,
   `releaseTxHash String?`, `refundTxHash String?`, `escrowBookingIdHash String` (the
   `keccak256` value the contract indexes on). Replace `PaymentGatewayName` (STRIPE/PAYSTACK)
-  with a single implicit gateway, or a `token` field (`CUSD`/`USDC`) if we support both.
+  with a single implicit gateway, or a `token` field (`USDM`/`USDC`) if we support both.
   `PaymentStatus` enum (PENDING/SUCCEEDED/FAILED/REFUNDED) stays as-is — it already matches
   the escrow lifecycle (deposited=PENDING, released=SUCCEEDED, refunded=REFUNDED).
 
@@ -292,9 +292,16 @@ enums (`ListerVerificationStatus`, `ListerBusinessType`, `IdDocumentType`, `Payo
       Deploying needs a funded Sepolia deployer key and real treasury/operator addresses,
       none of which exist yet — do this once Phase 5 is ready to actually integrate against a
       live contract address, not before.
-- [ ] cUSD addresses: mainnet `0x765DE816845861e75A25fCA122bb6898B8B1282a` (verified via
-      CeloScan). The Celo Sepolia cUSD address still hasn't been confirmed — check
-      `docs.celo.org/tooling/contracts/token-contracts` directly before testnet deployment.
+- [x] **Resolved**: Celo Sepolia has no cUSD at all. Verified directly against the chain (not
+      just docs, which gave inconsistent answers): mainnet's dollar stablecoin is cUSD at
+      `0x765DE816845861e75A25fCA122bb6898B8B1282a` (unchanged, still real). Celo Sepolia's
+      equivalent is a *different* contract, Mento Dollar (USDm), at
+      `0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b` — confirmed via `eth_getCode` (real deployed
+      bytecode) and `decimals()` (18, matching cUSD's convention). The app now calls this asset
+      "USDm" everywhere (env var `USDM_TOKEN_ADDRESS`, UI labels) — on mainnet that variable
+      still points at the real cUSD contract (there's no separate mainnet "USDm"), it's just
+      named consistently with testnet now. See Phase 8 for the Mento swap mechanics needed to
+      actually acquire test USDm on Sepolia.
 - [ ] `tsc --noEmit` on `apps/contracts` reports real errors on the new test file (missing
       `chai-as-promised` type declarations, `hre.viem` contract-name overloads not resolving
       outside Hardhat's own compile/test pipeline) — **pre-existing across the whole scaffold**,
@@ -310,7 +317,7 @@ enums (`ListerVerificationStatus`, `ListerBusinessType`, `IdDocumentType`, `Payo
 ## Phase 5 — Payments module ✅ done, verified end-to-end on a local chain
 
 **Network decision**: built and configured against **Celo mainnet** (chainId 42220,
-`CELO_RPC_URL=https://forno.celo.org`, mainnet cUSD address) per explicit instruction —
+`CELO_RPC_URL=https://forno.celo.org`, mainnet USDm/cUSD address) per explicit instruction —
 Phase 4's original "testnet first" plan was skipped for the *network target*. Actual
 deployment/operation still needs real values this session doesn't have and shouldn't invent:
 a funded mainnet deployer + operator key, and a real treasury address. `ESCROW_CONTRACT_ADDRESS`,
@@ -445,13 +452,16 @@ pulled in, and no new Radix dependencies added either (see below).
 
 ---
 
-## Phase 7 — Minimal ops mechanism (not a UI)
+## Phase 7 — Minimal ops mechanism (not a UI) ✅ done (built ahead of schedule in Phase 5)
 
 Deliberately small scope — this app has no admin panel.
 
-- [ ] A single protected endpoint or authenticated CLI script (gate however's cheapest right
-      now — e.g. a shared ops secret header) to trigger `refund()` for a given booking ID,
-      for the rare case a confirmed booking needs to be unwound after money has moved.
+- [x] `POST /payments/bookings/:id/refund`, gated by `OpsSecretGuard` (a shared secret header,
+      `X-Ops-Secret` matched against `OPS_SECRET`) — this was already built in Phase 5 because
+      the payments module needed somewhere for refund() to be called from as soon as it
+      existed. Exercised end-to-end in Phase 5's local-chain verification (pre-release refund
+      succeeded, post-release refund correctly rejected with a clear message). Nothing left to
+      build here.
 - [ ] Revisit building a real ops UI only if this app gets enough real usage to need one.
 
 ---

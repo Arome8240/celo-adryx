@@ -15,8 +15,8 @@ const ESCROW_ABI = parseAbi([
 type Step = "idle" | "approving" | "depositing" | "confirming";
 
 const STEP_LABEL: Record<Step, string> = {
-  idle: "Pay with cUSD",
-  approving: "Approving cUSD…",
+  idle: "Pay with USDm",
+  approving: "Approving USDm…",
   depositing: "Depositing…",
   confirming: "Confirming…",
 };
@@ -82,7 +82,7 @@ export function DepositCard({
     <Card className="p-5">
       <h3 className="mb-2 font-semibold">Complete your payment</h3>
       <p className="mb-4 text-sm text-muted-foreground">
-        Pay directly from your connected wallet — this approves and deposits cUSD into the
+        Pay directly from your connected wallet — this approves and deposits USDm into the
         booking&apos;s escrow contract, held until your reservation is confirmed.
       </p>
       {!isConnected && (

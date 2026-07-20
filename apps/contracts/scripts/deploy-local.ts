@@ -3,7 +3,7 @@
 // node), mints test tokens to a "customer" account, and prints an .env
 // snippet apps/api can source to exercise the real payments flow against a
 // real (local) chain. Never run this against Celo mainnet/Sepolia — it
-// deploys a fake token, not real cUSD.
+// deploys a fake token, not real USDm/cUSD.
 import hre from "hardhat";
 import { parseEther } from "viem";
 
@@ -12,8 +12,8 @@ async function main() {
     await hre.viem.getWalletClients();
 
   const token = await hre.viem.deployContract("MockERC20", [
-    "Mock cUSD",
-    "mUSD",
+    "Mock USDm",
+    "mUSDm",
   ]);
   await token.write.mint([customer.account.address, parseEther("10000")]);
 
@@ -36,7 +36,7 @@ async function main() {
   console.log("--- Local deployment (for verification only) ---");
   console.log("CELO_RPC_URL=http://127.0.0.1:8545");
   console.log("CHAIN_ID=31337");
-  console.log(`CUSD_TOKEN_ADDRESS=${token.address}`);
+  console.log(`USDM_TOKEN_ADDRESS=${token.address}`);
   console.log(`ESCROW_CONTRACT_ADDRESS=${escrow.address}`);
   console.log(`OPERATOR_PRIVATE_KEY=${OPERATOR_PRIVATE_KEY}`);
   console.log(`TREASURY_ADDRESS=${treasury.account.address}`);

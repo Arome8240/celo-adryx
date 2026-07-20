@@ -24,7 +24,7 @@ export interface EscrowState {
   status: number;
 }
 
-/** cUSD (and every other Celo-native stable asset) uses 18 decimals, same as CELO itself. */
+/** USDm (and every other Celo-native stable asset) uses 18 decimals, same as CELO itself. */
 const TOKEN_DECIMALS = 18n;
 /** Booking amounts are stored in USD cents (2 decimals) — see Booking.totalAmountMinor. */
 const CURRENCY_DECIMALS = 2n;
@@ -47,7 +47,7 @@ export class CeloService {
   }
 
   get tokenAddress(): Hex {
-    return this.requireAddress('CUSD_TOKEN_ADDRESS');
+    return this.requireAddress('USDM_TOKEN_ADDRESS');
   }
 
   get chainId(): number {

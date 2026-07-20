@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-/// @notice Test-only stand-in for cUSD — never deployed to a real network.
+/// @notice Test-only stand-in for USDm/cUSD — never deployed to a real network.
 contract MockERC20 is ERC20 {
     constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) {}
 
