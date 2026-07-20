@@ -4,11 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import type { FlightSearchFiltersDto } from './dto/flight-search-filters.dto';
 import type { SearchFlightsDto } from './dto/search-flights.dto';
 import type { AmadeusOfferRaw } from './lib/normalize-amadeus-offer';
 import { normalizeAmadeusOffer } from './lib/normalize-amadeus-offer';
+import { normalizeAmadeusLocation } from './lib/normalize-amadeus-location';
 import { AmadeusFlightProvider } from './providers/amadeus-flight.provider';
 import type {
   AirportSummary,
@@ -51,11 +51,12 @@ function maxStops(offer: FlightOffer): number {
 @Injectable()
 export class FlightsService {
   private readonly cache = new Map<string, CachedSearch>();
+  /** Airport codes never change once assigned, so this cache has no TTL — it
+   * exists purely to avoid re-querying Amadeus for the same code on every
+   * booking's domestic/international check. */
+  private readonly airportByCode = new Map<string, AirportSummary | null>();
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly amadeus: AmadeusFlightProvider,
-  ) {}
+  constructor(private readonly amadeus: AmadeusFlightProvider) {}
 
   async search(dto: SearchFlightsDto): Promise<FlightSearchResponse> {
     if (dto.infants > dto.adults) {
@@ -139,13 +140,12 @@ export class FlightsService {
         ),
       ),
     );
-    const airports = await this.prisma.airport.findMany({
-      where: { iataCode: { in: codes } },
-      select: { iataCode: true, countryCode: true },
-    });
-    if (airports.length !== codes.length) return false;
+    const airports = await Promise.all(
+      codes.map((code) => this.lookupAirportByCode(code)),
+    );
+    if (airports.some((airport) => airport === null)) return false;
     const countryCodes = new Set(
-      airports.map((airport) => airport.countryCode),
+      airports.map((airport) => (airport as AirportSummary).countryCode),
     );
     return countryCodes.size === 1;
   }
@@ -154,25 +154,27 @@ export class FlightsService {
     const trimmed = query?.trim() ?? '';
     if (trimmed.length < 2) return [];
 
-    const results = await this.prisma.airport.findMany({
-      where: {
-        OR: [
-          { iataCode: { equals: trimmed.toUpperCase() } },
-          { city: { contains: trimmed, mode: 'insensitive' } },
-          { name: { contains: trimmed, mode: 'insensitive' } },
-        ],
-      },
-      orderBy: { city: 'asc' },
-      take: 10,
-    });
+    const raw = await this.amadeus.searchLocations(trimmed);
+    return raw
+      .map(normalizeAmadeusLocation)
+      .filter((airport): airport is AirportSummary => airport !== null)
+      .slice(0, 10);
+  }
 
-    return results.map((airport) => ({
-      iataCode: airport.iataCode,
-      name: airport.name,
-      city: airport.city,
-      country: airport.country,
-      countryCode: airport.countryCode,
-    }));
+  /** Exact lookup by IATA code, via the same keyword search — a 3-letter code is an unambiguous match. Cached indefinitely since airport codes/countries don't change. */
+  private async lookupAirportByCode(
+    code: string,
+  ): Promise<AirportSummary | null> {
+    if (this.airportByCode.has(code)) {
+      return this.airportByCode.get(code) ?? null;
+    }
+    const raw = await this.amadeus.searchLocations(code);
+    const match =
+      raw
+        .map(normalizeAmadeusLocation)
+        .find((airport) => airport?.iataCode === code) ?? null;
+    this.airportByCode.set(code, match);
+    return match;
   }
 
   private buildResponse(

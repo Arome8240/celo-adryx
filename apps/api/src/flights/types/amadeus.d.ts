@@ -39,5 +39,13 @@ declare module 'amadeus' {
         post(body: unknown): Promise<{ data?: AmadeusFlightOrderResponse }>;
       };
     };
+    referenceData: {
+      locations: {
+        get(params: {
+          keyword: string;
+          subType: string;
+        }): Promise<{ data?: unknown[] }>;
+      };
+    };
   }
 }

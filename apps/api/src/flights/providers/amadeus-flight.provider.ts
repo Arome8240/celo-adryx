@@ -2,6 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import type Amadeus from 'amadeus';
 import { amadeusErrorMessage } from '../lib/amadeus-error';
 import type { AmadeusOfferRaw } from '../lib/normalize-amadeus-offer';
+import type { AmadeusLocationRaw } from '../lib/normalize-amadeus-location';
 import type { FlightSearchParams } from '../types/flight.types';
 import { AmadeusAuthService } from './amadeus-auth.service';
 
@@ -214,6 +215,26 @@ export class AmadeusFlightProvider {
     } catch (err) {
       throw new InternalServerErrorException(
         `Amadeus order creation failed: ${amadeusErrorMessage(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Airport/city autocomplete — also used for the exact-IATA-code lookups
+   * `FlightsService.isDomesticOffer()` needs, since a 3-letter code is an
+   * unambiguous keyword and returns that single location as its match.
+   */
+  async searchLocations(keyword: string): Promise<AmadeusLocationRaw[]> {
+    const amadeus = this.auth.getClient();
+    try {
+      const response = await amadeus.referenceData.locations.get({
+        keyword,
+        subType: 'AIRPORT',
+      });
+      return (response.data ?? []) as AmadeusLocationRaw[];
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `Amadeus location search failed: ${amadeusErrorMessage(err)}`,
       );
     }
   }
