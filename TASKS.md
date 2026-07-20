@@ -466,36 +466,66 @@ Deliberately small scope — this app has no admin panel.
 
 ---
 
-## Phase 8 — Testing & rollout
+## Phase 8 — Testing & rollout (in progress)
 
-- [ ] End-to-end on Celo Sepolia testnet first: search → book (real Amadeus test-env order)
-      → deposit test cUSD → confirm → release → verify booking detail page shows PNR + tx
-      hashes. Use Amadeus's test environment exactly as adryxflight does (small regional
-      carriers are search-only, not sellable — use a major carrier like Turkish Airlines to
-      validate the full order-creation path, same as adryxflight's verification).
-- [ ] Only after that passes cleanly: mainnet contract deployment, mainnet Amadeus
-      credentials (if/when this goes beyond a test build), and MiniPay app-directory
-      submission — check `docs.minipay.xyz` directly for current submission/listing
-      requirements before that step; nothing manifest-file-shaped turned up in search, so
-      distribution may just be a listing request rather than a manifest to author.
+**Explicit decision: mainnet only, no Celo Sepolia dry run.** The original plan below (testnet
+first, promote to mainnet only after a clean run) was superseded by direct instruction —
+flagged the risk once (first live-network run is with real funds, no dry run) and the user
+confirmed mainnet-only is intentional. Proceeding on that basis.
+
+- [x] Testnet research done before the mainnet-only call, kept here for reference in case a
+      dry run is ever wanted later: real Mento Sepolia contracts confirmed directly on-chain
+      (not just docs, which gave inconsistent/outdated answers) — Broker
+      `0xB9Ae2065142EB79b6c5EB1E8778F883fad6B07Ba`, BiPoolManager
+      `0xeCB3C656C131fCd9bB8D1d80898716bD684feb78`, CELO/USDm `exchangeId`
+      `0x3135b662c38265d0655177091f1b647b4fef511103d06c016efdf18b46930d2c`, USDm token
+      `0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b` — validated by actually calling
+      `getAmountOut` on the Broker and getting back a real, sane quote (not a revert). The
+      three throwaway testnet keypairs generated for this are unused now (worthless, testnet
+      only, safe to leave as-is or discard).
+- [ ] **Mainnet deployment — blocked on inputs only the user can safely provide**:
+  - A mainnet deployer address, funded with real CELO for gas.
+  - A real treasury address (where `release()` sends confirmed payments).
+  - The operator address/key (the backend's hot wallet that calls `release()`/`refund()`) —
+    recommended the user generate this themselves via their own trusted tooling and hand over
+    only the *address* for the contract's constructor, then place the real private key
+    directly into the server's `.env` without it passing through this conversation. Generating
+    it here would work functionally identically, but a hot wallet with real fund-moving
+    authority is exactly the kind of secret that shouldn't have an unnecessary hop through an
+    AI assistant's session if it can be avoided.
+  - Once those exist: deploy `FlightEscrow` via `ignition/modules/FlightEscrow.ts --network
+    celo`, set `ESCROW_CONTRACT_ADDRESS`/`OPERATOR_PRIVATE_KEY`/`TREASURY_ADDRESS` in
+    `apps/api/.env`, and run the real search → book → deposit → confirm → release flow with
+    real (likely small-value, first-run) USDm/cUSD. Use Amadeus's test environment for the
+    flight side exactly as adryxflight does (small regional carriers are search-only, not
+    sellable — use a major carrier like Turkish Airlines) until Amadeus production
+    credentials are also in place.
+- [ ] MiniPay app-directory submission — check `docs.minipay.xyz` directly for current
+      submission/listing requirements before that step; nothing manifest-file-shaped turned
+      up in search, so distribution may just be a listing request rather than a manifest to
+      author.
 
 ---
 
-## Environment variables (apps/api)
+## Environment variables (apps/api) — as actually built (see apps/api/.env.example)
 
 ```
 DATABASE_URL=
-JWT_SECRET=
+JWT_ACCESS_SECRET=
 JWT_REFRESH_SECRET=
+CORS_ORIGINS=
+SIWE_DOMAIN=
+SIWE_URI=
 AMADEUS_CLIENT_ID=
 AMADEUS_CLIENT_SECRET=
-AMADEUS_HOST=travel.api.amadeus.com        # test.travel.api.amadeus.com in dev
-CELO_RPC_URL=https://forno.celo.org        # Celo Sepolia RPC in dev
-CHAIN_ID=42220                              # 11142220 for Celo Sepolia
-ESCROW_CONTRACT_ADDRESS=
-CUSD_TOKEN_ADDRESS=0x765DE816845861e75A25fCA122bb6898B8B1282a
+AMADEUS_ENV=test                            # "test" or "production" — always explicit
+CELO_RPC_URL=https://forno.celo.org         # mainnet-only, per explicit decision — see Phase 8
+CHAIN_ID=42220
+USDM_TOKEN_ADDRESS=0x765DE816845861e75A25fCA122bb6898B8B1282a   # mainnet's cUSD contract, called USDm here for naming consistency with testnet
+ESCROW_CONTRACT_ADDRESS=                    # blank until FlightEscrow is actually deployed
 OPERATOR_PRIVATE_KEY=                       # backend's release()/refund() signer — treat like a production secret
 TREASURY_ADDRESS=
+OPS_SECRET=                                 # gates POST /payments/bookings/:id/refund
 ```
 
 ## Open questions to revisit (not blocking Phase 0 start)
@@ -504,4 +534,4 @@ TREASURY_ADDRESS=
 - Exact refund-after-release handling (Phase 5's open question above).
 - MiniPay listing/submission requirements — check `docs.minipay.xyz` when we're actually
   ready to distribute, not before.
-- Whether USDC support is needed alongside cUSD, or cUSD-only is fine for v1.
+- Whether USDC support is needed alongside USDm, or USDm-only is fine for v1.
