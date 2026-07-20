@@ -6,6 +6,7 @@ import { getAddress, keccak256, parseEther, toBytes, zeroAddress } from "viem";
 const DEPOSIT_AMOUNT = parseEther("100");
 const BOOKING_HASH_1 = keccak256(toBytes("booking-1"));
 const BOOKING_HASH_2 = keccak256(toBytes("booking-2"));
+const BOOKING_HASH_3 = keccak256(toBytes("booking-3"));
 
 // Escrow.Status enum order, mirrored from the contract.
 const STATUS_DEPOSITED = 1;
@@ -76,6 +77,14 @@ describe("FlightEscrow", function () {
     const ctx = await deployFixture();
     await ctx.tokenAsPayer.write.approve([ctx.escrow.address, DEPOSIT_AMOUNT]);
     await ctx.escrowAsPayer.write.deposit([BOOKING_HASH_1, DEPOSIT_AMOUNT]);
+    return ctx;
+  }
+
+  async function depositedNativeFixture() {
+    const ctx = await deployFixture();
+    await ctx.escrowAsPayer.write.depositNative([BOOKING_HASH_1], {
+      value: DEPOSIT_AMOUNT,
+    });
     return ctx;
   }
 
