@@ -198,17 +198,6 @@ exports.Prisma.SavedTravelerScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
-exports.Prisma.AirportScalarFieldEnum = {
-  id: 'id',
-  iataCode: 'iataCode',
-  name: 'name',
-  city: 'city',
-  country: 'country',
-  countryCode: 'countryCode',
-  latitude: 'latitude',
-  longitude: 'longitude'
-};
-
 exports.Prisma.PaymentScalarFieldEnum = {
   id: 'id',
   bookingId: 'bookingId',
@@ -301,7 +290,6 @@ exports.Prisma.ModelName = {
   FlightBooking: 'FlightBooking',
   Passenger: 'Passenger',
   SavedTraveler: 'SavedTraveler',
-  Airport: 'Airport',
   Payment: 'Payment'
 };
 

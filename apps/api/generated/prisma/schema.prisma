@@ -124,19 +124,6 @@ model SavedTraveler {
   @@index([userId])
 }
 
-model Airport {
-  id          String @id @default(cuid())
-  iataCode    String @unique
-  name        String
-  city        String
-  country     String
-  countryCode String
-  latitude    Float?
-  longitude   Float?
-
-  @@index([city])
-}
-
 /// On-chain escrow payment for a booking. One row per Booking — a customer
 /// pays once per booking; see apps/contracts/contracts/FlightEscrow.sol.
 model Payment {
