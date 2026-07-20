@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "www.gstatic.com" },
+    ],
+  },
   webpack: (config) => {
     // Alias away the React Native async-storage dep pulled in by MetaMask SDK
     // (browser build doesn't need it; aliasing to false tells webpack to skip it)

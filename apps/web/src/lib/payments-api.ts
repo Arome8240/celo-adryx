@@ -1,4 +1,5 @@
 import { request } from "./api-client";
+import type { BookingRecord } from "./bookings-api";
 
 export interface InitiatePaymentResult {
   contractAddress: string;
@@ -15,7 +16,7 @@ export const paymentsApi = {
     }),
 
   confirm: (bookingId: string, txHash: string) =>
-    request(`/payments/bookings/${bookingId}/confirm`, {
+    request<BookingRecord>(`/payments/bookings/${bookingId}/confirm`, {
       method: "POST",
       body: JSON.stringify({ txHash }),
     }),
