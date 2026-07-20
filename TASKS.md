@@ -483,6 +483,56 @@ confirmed mainnet-only is intentional. Proceeding on that basis.
       `getAmountOut` on the Broker and getting back a real, sane quote (not a revert). The
       three throwaway testnet keypairs generated for this are unused now (worthless, testnet
       only, safe to leave as-is or discard).
+- [x] **Dual-asset payments added** (requested mid-Phase-8, before deployment): MiniPay
+      wallets hold USDm; wallets connected outside MiniPay more commonly hold native CELO than
+      a Mento stable, so the whole payment path now supports both, chosen automatically via
+      `useIsMiniPay()`.
+  - `FlightEscrow.sol`: added `depositNative(bytes32 bookingIdHash) payable`; `Escrow` gained
+    an `isNative` flag; `release()`/`refund()` branch on it to move either the ERC20 or raw
+    CELO; `Deposited`/`Released`/`Refunded` events all gained an `isNative` field. `deposit()`
+    (ERC20) is unchanged. One deposit per booking still holds regardless of which entry point
+    was used — cross-checked with tests that hitting the *other* path on an already-used hash
+    is rejected the same as double-hitting the same one.
+  - Test suite grew from 19 → **26 passing tests** — full native-path coverage (deposit,
+    double-deposit rejected, zero-value rejected, cross-path rejection both directions,
+    release moves CELO to treasury, refund returns CELO to payer).
+  - Backend: `Payment` gained `isNative Boolean` and `tokenAddress` became nullable (null for
+    native deposits) — pushed to both the local dev DB and the real Aiven DB (additive only).
+    `POST /payments/bookings/:id/initiate` now takes `{ asset: "USDM" | "CELO" }`; for CELO it
+    quotes a live CELO amount via Mento's Broker (`getAmountIn`) rather than a fixed
+    conversion, since CELO floats against the dollar unlike USDm. That quote is a **price
+    reference only** — the escrow never calls Mento, it just custodies whichever asset arrives.
+    `confirm()` now accepts either asset's `Deposited` event and, for CELO, checks the
+    deposited amount against a **fresh** quote with a 3% tolerance (not the stale
+    initiate-time one) — CELO's price can move in the seconds between quoting and the deposit
+    landing, so an exact-match check would be wrong here, unlike USDm's exact peg check.
+  - Real Mento mainnet addresses confirmed the same way as testnet (on-chain, not just docs):
+    Broker `0x777A8255cA72412f0d706dc03C9D1987306B4CaD`, BiPoolManager
+    `0x22d9db95E6Ae61c104A7B6F6C78D7993B94ec901`, CELO/cUSD `exchangeId`
+    `0x3135b662c38265d0655177091f1b647b4fef511103d06c016efdf18b46930d2c` (same id as testnet —
+    plausible, Mento's exchangeId is a deterministic hash of pool parameters, not coincidence)
+    — validated with a real `getAmountOut` quote (1 CELO ≈ 0.0686 cUSD at query time).
+  - Frontend: extracted the duplicated `window.ethereum.isMiniPay` check (previously inline in
+    both `wallet-provider.tsx` and `connect-button.tsx`) into a shared `useIsMiniPay()` hook.
+    `DepositCard` now picks the asset from that hook and branches the wagmi call: MiniPay →
+    `approve` + `deposit` (unchanged); everyone else → `depositNative` with the quoted value,
+    no approval step.
+  - **Fully verified locally, end to end, for both assets** — not just unit tests. Built a
+    `MockMentoBroker.sol` fixture (fixed 1 CELO = 10 USDm rate, kept in `contracts/mocks/` for
+    future re-verification) so the live-quote step could run against a local Hardhat node too.
+    Ran the *real* API against a real (local) DB and chain: SIWE login → real Amadeus
+    search/booking (Turkish Airlines, real PNR) → `initiate` → deposit → `confirm` → `release`,
+    once for each asset, asserting the treasury's on-chain balance moved by exactly the
+    expected amount both times. Also re-verified the refund path specifically for native CELO
+    (via the same direct-DB "deposited but not released" simulation used in Phase 5) — customer
+    balance restored exactly, booking `CANCELLED`. The real (mainnet-configured) `.env` was
+    backed up before this local round and restored after; the temporary chain-31337 Mento
+    config entry was removed from `celo.service.ts` afterward (production code only knows
+    about real mainnet/Sepolia Mento addresses).
+  - **Not yet verified**: the actual in-browser wallet click-through for either asset (same
+    browser-automation-tool limitation noted in Phase 6) — the wagmi call shapes match what's
+    now proven correct server-side, but a real MiniPay/RainbowKit click-through with a real
+    wallet hasn't been exercised.
 - [ ] **Mainnet deployment — blocked on inputs only the user can safely provide**:
   - A mainnet deployer address, funded with real CELO for gas.
   - A real treasury address (where `release()` sends confirmed payments).
