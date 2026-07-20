@@ -15,19 +15,51 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { celo } from 'viem/chains';
-import { FLIGHT_ESCROW_ABI } from './lib/flight-escrow-abi';
+import { FLIGHT_ESCROW_ABI, MENTO_BROKER_ABI } from './lib/flight-escrow-abi';
 
 export interface EscrowState {
   payer: Hex;
   amount: bigint;
   /** 0 = None, 1 = Deposited, 2 = Released, 3 = Refunded — mirrors FlightEscrow.sol's Status enum. */
   status: number;
+  isNative: boolean;
 }
 
-/** USDm (and every other Celo-native stable asset) uses 18 decimals, same as CELO itself. */
+/** USDm (and every other Celo-native stable asset, and CELO itself) uses 18 decimals. */
 const TOKEN_DECIMALS = 18n;
 /** Booking amounts are stored in USD cents (2 decimals) — see Booking.totalAmountMinor. */
 const CURRENCY_DECIMALS = 2n;
+
+/**
+ * Canonical Mento protocol addresses, keyed by chain id — these are
+ * fixed, public protocol contracts (not per-deployment secrets), so they're
+ * hardcoded here rather than pulled from env vars. Used only as a live price
+ * reference (getAmountIn) for the non-MiniPay "pay with CELO" path; the
+ * escrow itself never calls into Mento; it just custodies native CELO.
+ * Verified directly on-chain (eth_getCode + a real getAmountOut call), not
+ * just from docs — see TASKS.md Phase 8.
+ */
+const MENTO_CONFIG: Record<
+  number,
+  { broker: Hex; exchangeProvider: Hex; exchangeId: Hex; celoAddress: Hex }
+> = {
+  42220: {
+    // Celo mainnet
+    broker: '0x777A8255cA72412f0d706dc03C9D1987306B4CaD',
+    exchangeProvider: '0x22d9db95E6Ae61c104A7B6F6C78D7993B94ec901',
+    exchangeId:
+      '0x3135b662c38265d0655177091f1b647b4fef511103d06c016efdf18b46930d2c',
+    celoAddress: '0x471EcE3750Da237f93B8E339c536989b8978a438',
+  },
+  11142220: {
+    // Celo Sepolia testnet
+    broker: '0xB9Ae2065142EB79b6c5EB1E8778F883fad6B07Ba',
+    exchangeProvider: '0xeCB3C656C131fCd9bB8D1d80898716bD684feb78',
+    exchangeId:
+      '0x3135b662c38265d0655177091f1b647b4fef511103d06c016efdf18b46930d2c',
+    celoAddress: '0x471EcE3750Da237f93B8E339c536989b8978a438',
+  },
+};
 
 /**
  * Owns the viem clients talking to the escrow contract. Configuration is
@@ -59,9 +91,54 @@ export class CeloService {
     return keccak256(toBytes(bookingId));
   }
 
-  /** USD cents -> the token's smallest unit (18 decimals). */
+  /** USD cents -> the token's smallest unit (18 decimals). Used for the USDm/ERC20 deposit path, where the peg is exact. */
   toTokenAmount(amountMinor: number): bigint {
     return BigInt(amountMinor) * 10n ** (TOKEN_DECIMALS - CURRENCY_DECIMALS);
+  }
+
+  /**
+   * How much native CELO is needed right now for a booking's USD price —
+   * the non-MiniPay deposit path. CELO floats against the dollar (unlike
+   * USDm), so this is a live quote off Mento's Broker (the same AMM anyone
+   * would actually swap through), not a fixed conversion. Quote-then-deposit
+   * has an inherent small race against price movement — see
+   * `isNativeAmountAcceptable` for how that's handled at confirm time.
+   */
+  async quoteNativeAmountForUsd(amountMinor: number): Promise<bigint> {
+    const usdmAmount = this.toTokenAmount(amountMinor);
+    const mento = this.getMentoConfig();
+    const amountIn = await this.getPublicClient().readContract({
+      address: mento.broker,
+      abi: MENTO_BROKER_ABI,
+      functionName: 'getAmountIn',
+      args: [
+        mento.exchangeProvider,
+        mento.exchangeId,
+        mento.celoAddress,
+        this.tokenAddress,
+        usdmAmount,
+      ],
+    });
+    return amountIn;
+  }
+
+  /**
+   * Whether an actually-deposited native CELO amount is close enough to a
+   * fresh quote to accept — CELO's price can move in the seconds between
+   * `initiate` and the deposit transaction landing, so this isn't (and
+   * shouldn't be) an exact-match check. 3% either side of a quote taken at
+   * confirm time is generous enough to absorb normal price movement while
+   * still catching a wildly wrong/stale amount.
+   */
+  async isNativeAmountAcceptable(
+    amountMinor: number,
+    depositedAmount: bigint,
+  ): Promise<boolean> {
+    const freshQuote = await this.quoteNativeAmountForUsd(amountMinor);
+    const tolerance = (freshQuote * 3n) / 100n;
+    const min = freshQuote > tolerance ? freshQuote - tolerance : 0n;
+    const max = freshQuote + tolerance;
+    return depositedAmount >= min && depositedAmount <= max;
   }
 
   async getTransactionReceipt(hash: Hex): Promise<TransactionReceipt> {
@@ -71,7 +148,7 @@ export class CeloService {
   /** Decodes every `Deposited` event in a receipt's logs — used to confirm a specific deposit actually happened, rather than trusting the caller's say-so. */
   decodeDepositedLogs(
     receipt: TransactionReceipt,
-  ): Array<{ bookingIdHash: Hex; payer: Hex; amount: bigint }> {
+  ): Array<{ bookingIdHash: Hex; payer: Hex; amount: bigint; isNative: boolean }> {
     const decoded = parseEventLogs({
       abi: FLIGHT_ESCROW_ABI,
       eventName: 'Deposited',
@@ -81,17 +158,18 @@ export class CeloService {
       bookingIdHash: log.args.bookingIdHash,
       payer: log.args.payer,
       amount: log.args.amount,
+      isNative: log.args.isNative,
     }));
   }
 
   async getEscrow(bookingIdHash: Hex): Promise<EscrowState> {
-    const [payer, amount, status] = (await this.getPublicClient().readContract({
+    const [payer, amount, status, isNative] = (await this.getPublicClient().readContract({
       address: this.escrowContractAddress,
       abi: FLIGHT_ESCROW_ABI,
       functionName: 'escrows',
       args: [bookingIdHash],
-    })) as [Hex, bigint, number];
-    return { payer, amount, status };
+    })) as [Hex, bigint, number, boolean];
+    return { payer, amount, status, isNative };
   }
 
   /** Calls release() from the operator wallet and waits for the receipt — reverts surface as a thrown error. */
@@ -130,6 +208,16 @@ export class CeloService {
       );
     }
     return hash;
+  }
+
+  private getMentoConfig() {
+    const config = MENTO_CONFIG[this.chainId];
+    if (!config) {
+      throw new InternalServerErrorException(
+        `No Mento protocol addresses known for chain ${this.chainId} — native CELO payments aren't supported on this network yet`,
+      );
+    }
+    return config;
   }
 
   private getPublicClient(): PublicClient {
