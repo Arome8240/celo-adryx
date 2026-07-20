@@ -59,6 +59,16 @@ const MENTO_CONFIG: Record<
       '0x3135b662c38265d0655177091f1b647b4fef511103d06c016efdf18b46930d2c',
     celoAddress: '0x471EcE3750Da237f93B8E339c536989b8978a438',
   },
+  // TEMPORARY — local Hardhat verification only (MockMentoBroker), see
+  // TASKS.md Phase 8. Remove before/after this round of local testing; a
+  // real deploy never runs on chain 31337.
+  31337: {
+    broker: '0x8A791620dd6260079BF849Dc5567aDC3F2FdC318',
+    exchangeProvider: '0x8A791620dd6260079BF849Dc5567aDC3F2FdC318',
+    exchangeId:
+      '0x0000000000000000000000000000000000000000000000000000000000000001',
+    celoAddress: '0x471EcE3750Da237f93B8E339c536989b8978a438',
+  },
 };
 
 /**

@@ -24,6 +24,10 @@ async function main() {
     operator.account.address,
   ]);
 
+  // Only needed to exercise the native-CELO quote path locally — real
+  // networks use the real Mento Broker (see celo.service.ts's MENTO_CONFIG).
+  const mockBroker = await hre.viem.deployContract("MockMentoBroker", []);
+
   // Well-known Hardhat default-mnemonic private keys (publicly documented,
   // test-only) — hre.viem's wallet clients don't expose the raw key
   // directly since the node itself signs for its own accounts, so these
@@ -40,6 +44,7 @@ async function main() {
   console.log(`ESCROW_CONTRACT_ADDRESS=${escrow.address}`);
   console.log(`OPERATOR_PRIVATE_KEY=${OPERATOR_PRIVATE_KEY}`);
   console.log(`TREASURY_ADDRESS=${treasury.account.address}`);
+  console.log(`MOCK_MENTO_BROKER_ADDRESS=${mockBroker.address}`);
   console.log("--- test accounts ---");
   console.log(`customer address: ${customer.account.address}`);
   console.log(`customer private key: ${CUSTOMER_PRIVATE_KEY}`);
