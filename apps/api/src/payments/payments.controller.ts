@@ -4,6 +4,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { OpsSecretGuard } from '../common/guards/ops-secret.guard';
 import type { AuthenticatedUser } from '../common/interfaces/jwt-payload.interface';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
+import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -14,8 +15,9 @@ export class PaymentsController {
   initiate(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') bookingId: string,
+    @Body() dto: InitiatePaymentDto,
   ) {
-    return this.paymentsService.initiate(bookingId, user.userId);
+    return this.paymentsService.initiate(bookingId, user.userId, dto.asset);
   }
 
   @Post('bookings/:id/confirm')

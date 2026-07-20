@@ -146,9 +146,12 @@ export class CeloService {
   }
 
   /** Decodes every `Deposited` event in a receipt's logs — used to confirm a specific deposit actually happened, rather than trusting the caller's say-so. */
-  decodeDepositedLogs(
-    receipt: TransactionReceipt,
-  ): Array<{ bookingIdHash: Hex; payer: Hex; amount: bigint; isNative: boolean }> {
+  decodeDepositedLogs(receipt: TransactionReceipt): Array<{
+    bookingIdHash: Hex;
+    payer: Hex;
+    amount: bigint;
+    isNative: boolean;
+  }> {
     const decoded = parseEventLogs({
       abi: FLIGHT_ESCROW_ABI,
       eventName: 'Deposited',
@@ -163,12 +166,13 @@ export class CeloService {
   }
 
   async getEscrow(bookingIdHash: Hex): Promise<EscrowState> {
-    const [payer, amount, status, isNative] = (await this.getPublicClient().readContract({
-      address: this.escrowContractAddress,
-      abi: FLIGHT_ESCROW_ABI,
-      functionName: 'escrows',
-      args: [bookingIdHash],
-    })) as [Hex, bigint, number, boolean];
+    const [payer, amount, status, isNative] =
+      (await this.getPublicClient().readContract({
+        address: this.escrowContractAddress,
+        abi: FLIGHT_ESCROW_ABI,
+        functionName: 'escrows',
+        args: [bookingIdHash],
+      })) as [Hex, bigint, number, boolean];
     return { payer, amount, status, isNative };
   }
 
