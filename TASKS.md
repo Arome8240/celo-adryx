@@ -370,31 +370,61 @@ filled with placeholders.
 
 ---
 
-## Phase 6 — Frontend (customer flows only)
+## Phase 6 — Frontend (customer flows only) ✅ done
 
-Re-implement using the already-scaffolded shadcn/ui + Tailwind + wagmi stack — don't pull in
-`@adryx/ui`, it's a different design system built for the adryxflight product.
+Re-implemented with the already-scaffolded shadcn/ui + Tailwind + wagmi stack — no `@adryx/ui`
+pulled in, and no new Radix dependencies added either (see below).
 
-- [ ] Flight search page (`app/flights/search`) — port the search form, `FilterSidebar`,
-      `FlightResultCard`, `AirlineLogo` (Google's gstatic airline-logo CDN, already proven to
-      work: `https://www.gstatic.com/flights/airline_logos/70px/{IATA}.png`), and
-      `AirportAutocomplete` logic, restyled with shadcn primitives instead of `@adryx/ui`.
-- [ ] Booking page (`app/flights/book`) — port `PassengerFields` (gender required; expiry +
+- [x] Added the handful of shadcn primitives the port needed that didn't exist yet —
+      `Input`, `Select`, `Badge`, `Skeleton` (`components/ui/*`). `Select` is a styled native
+      `<select>`, not a Radix dropdown — nothing here needs custom option rendering, so the
+      extra dependency wasn't worth it. Same reasoning for checkboxes: plain styled native
+      inputs inline (FilterSidebar's airline filter, PassengerFields' "save traveler" toggle),
+      no dedicated `Checkbox` component for two call sites.
+- [x] Flight search: `SearchForm` (new — adryxflight's version had a hotels tab and used
+      `iconsax-react`/`@adryx/ui`'s `DatePicker`; this one is flights-only, native
+      `<input type="date">`, `lucide-react` icons) on the homepage, `FilterSidebar`,
+      `FlightResultCard`, `AirlineLogo` (same gstatic CDN, added to
+      `next.config.js`'s `images.remotePatterns`), `AirportAutocomplete` (native input,
+      `lucide-react`'s `MapPin` instead of iconsax) at `app/flights/search`.
+- [x] Booking page (`app/flights/book`) — `PassengerFields` ported (gender required; expiry +
       issuing country required for all document types; nationality/issuing-country
-      normalized to 2-letter uppercase **in this component**, never server-side) and the
-      booking-submit flow.
-- [ ] Booking success state — show the real PNR (`booking.flightBooking.pnr`) and a link to
-      the booking detail page, matching the pattern just built in adryxflight
-      (`flights/book/page.tsx`'s `confirmed` state).
-- [ ] Payment step — replace `PayNowCard`'s "redirect to Paystack/Stripe" behavior with:
-      call `initiate`, run `approve` + `deposit` via wagmi against the user's MiniPay wallet,
-      wait for the tx receipt client-side, then call `confirm` with the hash.
-- [ ] Booking detail page (`app/bookings/[id]`) — port as-is: PNR box, itinerary with airline
-      logos, passenger list; add the deposit/release tx hashes (linking to Celoscan) where a
-      payment-gateway reference used to be shown.
-- [ ] Hide the RainbowKit "Connect Wallet" button entirely when `window.ethereum.isMiniPay`
-      is true (already partially handled in `wallet-provider.tsx`'s auto-connect effect —
-      needs the UI-hiding half added too, not just the auto-connect half).
+      normalized to 2-letter uppercase **in this component**, never server-side). No discount
+      code section — `DiscountCode` was dropped from the schema back in Phase 0.
+- [x] Booking success state shows the real PNR and a link to the booking detail page.
+- [x] Payment step: `DepositCard` (new, replacing `PayNowCard`'s redirect-to-gateway
+      behavior) — calls `initiate`, runs `approve` (viem's built-in `erc20Abi`) then
+      `deposit` via wagmi's `useWalletClient`/`usePublicClient` against the connected wallet,
+      waits for each receipt client-side, then calls `confirm` with the deposit tx hash.
+      Used both on the booking success state and the booking detail page (shown whenever a
+      booking is `PENDING` and not yet `SUCCEEDED`).
+- [x] Booking detail page (`app/bookings/[id]`) — PNR box, itinerary with airline logos,
+      passenger list, price breakdown; deposit/release/refund tx hashes link to
+      `celoscan.io/tx/{hash}` (mainnet) where payment status is shown.
+- [x] Hide-Connect-Wallet-in-MiniPay was **already fully done** before this phase started —
+      `connect-button.tsx`'s `isMiniPay` check (`if (isMinipay) return null;`) was already
+      in the original scaffold; Phase 1 had already fixed the one thing wrong with it
+      (`navbar.tsx` referencing an undefined component instead of this one). No new work
+      needed here, just confirmed it's still correct.
+- [x] Fixed one new lint finding along the way: `FlightResultCardProps.children` (a
+      passenger count, mirroring the backend's `FlightSearchResponse.children` field name)
+      collided with React's special `children` prop and tripped
+      `react/no-children-prop`. Renamed to `childrenCount` in this component only — the
+      backend-matching field name stays as `children` everywhere else (DTOs, response
+      types) since only this one React prop needed to differ.
+- [x] **Verified**: `tsc --noEmit`, `next lint`, and `next build` are all clean; the dev
+      server serves all four routes (`/`, `/flights/search`, `/flights/book`,
+      `/bookings/[id]`) with no compile errors. Cross-checked the real (mainnet-configured)
+      API's actual JSON responses for `/flights/airports` and `/flights/search` against
+      this phase's TypeScript interfaces — they match field-for-field.
+  - **Not verified**: no browser-automation tool was available this session (same
+    limitation as Phase 1), so the actual in-browser flows — airport autocomplete
+    dropdown, the full search → book → `DepositCard`'s approve/deposit/confirm click-through
+    with a real wallet — were not clicked through end-to-end in a real browser. The
+    `DepositCard` logic mirrors the exact wagmi call shapes already proven correct
+    server-side in Phase 5's real on-chain test, and everything else is typechecked, linted,
+    built, and shape-verified against the live API, but a real click-through is still worth
+    doing before calling this phase fully closed.
 
 ---
 
