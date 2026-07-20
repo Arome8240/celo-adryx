@@ -15,6 +15,7 @@ export class ApiError extends Error {
 async function parseErrorMessage(res: Response): Promise<string> {
   try {
     const body = await res.json();
+    if (Array.isArray(body?.message)) return body.message.join(", ");
     return body?.message ?? `Request failed with status ${res.status}`;
   } catch {
     return `Request failed with status ${res.status}`;
