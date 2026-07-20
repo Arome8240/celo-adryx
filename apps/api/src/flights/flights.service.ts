@@ -9,6 +9,10 @@ import type { SearchFlightsDto } from './dto/search-flights.dto';
 import type { AmadeusOfferRaw } from './lib/normalize-amadeus-offer';
 import { normalizeAmadeusOffer } from './lib/normalize-amadeus-offer';
 import { normalizeAmadeusLocation } from './lib/normalize-amadeus-location';
+import {
+  findLocalAirportByCode,
+  searchLocalAirports,
+} from './lib/local-airports';
 import { AmadeusFlightProvider } from './providers/amadeus-flight.provider';
 import type {
   AirportSummary,
@@ -150,18 +154,33 @@ export class FlightsService {
     return countryCodes.size === 1;
   }
 
+  /**
+   * Live Amadeus keyword search, topped up with `LOCAL_AIRPORTS` — see that
+   * file's doc comment for why (Amadeus's test-sandbox reference data has no
+   * coverage at all for several of this app's target-market airports).
+   * Local matches are put first: `LOCAL_AIRPORTS` is small and only ever
+   * matches a handful of queries, so putting Amadeus's (often 10, already
+   * relevance-sorted) results first would silently crowd them out of the
+   * final slice — e.g. "los" matching 10 unrelated "Los Angeles"-ish
+   * Amadeus results before Lagos ever gets a chance.
+   */
   async searchAirports(query: string): Promise<AirportSummary[]> {
     const trimmed = query?.trim() ?? '';
     if (trimmed.length < 2) return [];
 
+    const fromLocal = searchLocalAirports(trimmed);
+    const seen = new Set(fromLocal.map((airport) => airport.iataCode));
+
     const raw = await this.amadeus.searchLocations(trimmed);
-    return raw
+    const fromAmadeus = raw
       .map(normalizeAmadeusLocation)
       .filter((airport): airport is AirportSummary => airport !== null)
-      .slice(0, 10);
+      .filter((airport) => !seen.has(airport.iataCode));
+
+    return [...fromLocal, ...fromAmadeus].slice(0, 10);
   }
 
-  /** Exact lookup by IATA code, via the same keyword search — a 3-letter code is an unambiguous match. Cached indefinitely since airport codes/countries don't change. */
+  /** Exact lookup by IATA code, via the same keyword search — a 3-letter code is an unambiguous match. Falls back to `LOCAL_AIRPORTS` (see its doc comment). Cached indefinitely since airport codes/countries don't change. */
   private async lookupAirportByCode(
     code: string,
   ): Promise<AirportSummary | null> {
@@ -172,7 +191,8 @@ export class FlightsService {
     const match =
       raw
         .map(normalizeAmadeusLocation)
-        .find((airport) => airport?.iataCode === code) ?? null;
+        .find((airport) => airport?.iataCode === code) ??
+      findLocalAirportByCode(code);
     this.airportByCode.set(code, match);
     return match;
   }

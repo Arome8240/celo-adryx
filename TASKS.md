@@ -579,6 +579,48 @@ confirmed mainnet-only is intentional. Proceeding on that basis.
       left completely untouched in `CeloService`, just unused while this override is active.
       **Do this before any real customer-facing launch** — right now every booking is
       underpriced by design.
+- [x] **Airport data switched from a curated local table to live Amadeus lookups**
+      (requested: "there are some locations that arent there" — the old hand-curated
+      38-airport `Airport` Prisma table/seed simply didn't cover most of the world).
+      Chose **live-query Amadeus per search** over bulk-importing Amadeus's data into our own
+      DB — no sync job to maintain, and Amadeus is already the source of truth for the flights
+      themselves.
+  - `AmadeusFlightProvider.searchLocations(keyword)` calls
+    `amadeus.referenceData.locations.get({ keyword, subType: 'AIRPORT' })` (confirmed via the
+    SDK's own source — this is the general keyword search; `locations.airports.get()` is a
+    different, coordinate-based "nearby airports" endpoint, not usable for text search).
+    `normalizeAmadeusLocation()` maps its response into the existing `AirportSummary` shape and
+    title-cases the ALL-CAPS fields Amadeus returns (`"LONDON"` → `"London"`) so display stays
+    consistent.
+  - `FlightsService.searchAirports()` (autocomplete) and `isDomesticOffer()` (the
+    passport-vs-national-ID check at booking time) both now call this instead of
+    `this.prisma.airport.findMany(...)`. The `Airport` Prisma model, its seed script
+    (`prisma/seed/`), and the `db:seed` package.json script were deleted outright — `db push
+    --accept-data-loss` dropped the table from the real Aiven DB (37 rows, all curated seed
+    data, no real customer data, so no actual loss).
+  - **Real gap found while verifying live**: Amadeus's *test/sandbox* reference data (the only
+    credentials this app has — `AMADEUS_ENV=test`) has no entry at all for most West/East
+    African airports — confirmed directly by querying the live API: `"ABV"`, `"ACC"`, `"NBO"`,
+    `"LAGOS"`, `"MURTALA"`, `"NIGERIA"` all return nothing or unrelated matches (e.g. `"LAGOS"`
+    returns a Mexican town). Major global hubs work perfectly (`"LHR"`, `"JFK"`, `"CDG"`, `"CAN"`
+    all resolve to an exact single match). This is a sandbox data-coverage gap, not a query
+    design flaw — production Amadeus credentials would very likely cover Nigeria/Africa
+    natively.
+  - Since this app's target market is Nigeria/African MiniPay users (the same reason
+    adryxflight is Nigeria-heavy), a **small local fallback list**
+    (`apps/api/src/flights/lib/local-airports.ts`, 26 entries — reusing the old curated table's
+    African/Nigerian rows only) supplements the live Amadeus search: exact-code lookups
+    (`isDomesticOffer`) check Amadeus first, then this list; autocomplete
+    (`searchAirports`) puts local matches *first* in the merged result (Amadeus's own 10
+    relevance-sorted results would otherwise fully crowd out a 1-entry local match before it
+    ever got a chance — confirmed live: searching `"los"` originally returned 10 "Los
+    Angeles/Los Cabos/..." matches with Lagos absent entirely; fixed by reordering the merge).
+    This list is explicitly commented as a stopgap, not a return to a general-purpose local
+    database — redundant the moment production Amadeus credentials are used.
+  - Verified live end-to-end against the running API (not just typecheck): `"lon"` → London's 4
+    airports + noise, `"can"` → Guangzhou Baiyun exact match, `"los"`/`"lagos"` → Lagos now
+    appears (from the local list), `"abv"`/`"jos"`/`"phc"` → their respective Nigerian airports
+    resolve correctly via the local fallback.
 - [ ] MiniPay app-directory submission — check `docs.minipay.xyz` directly for current
       submission/listing requirements before that step; nothing manifest-file-shaped turned
       up in search, so distribution may just be a listing request rather than a manifest to
