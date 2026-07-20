@@ -426,6 +426,23 @@ pulled in, and no new Radix dependencies added either (see below).
     built, and shape-verified against the live API, but a real click-through is still worth
     doing before calling this phase fully closed.
 
+**Addendum — mobile bottom navigation** (requested after Phase 6, not in the original plan):
+
+- [x] `components/bottom-nav.tsx` — a fixed 3-tab bar (Search/Trips/Account, `lucide-react`
+      icons, active-tab highlighting via `usePathname()`), `sm:hidden` so it only shows on
+      mobile — this is a MiniPay mini app, meant to feel like a native mobile app when opened
+      inside MiniPay's in-app browser, not a desktop site. Respects
+      `env(safe-area-inset-bottom)` for phones with a home-indicator bar.
+- [x] Two new pages needed real destinations for "Trips" and "Account" to point at, since
+      neither existed yet: `/bookings` (list view over `bookingsApi.list()`, reusing the
+      status-badge/PNR pattern from the detail page) and `/account` (wallet address + balances
+      via the already-existing `UserBalance` component, contact details from the SIWE session,
+      a disconnect action wired to both wagmi's `useDisconnect` and clearing the auth store).
+- [x] Added both to the desktop `Navbar` too (`navLinks`) — the bottom nav is mobile-only, so
+      desktop needed its own way to reach these without a dead end.
+- [x] `tsc --noEmit`, `next lint`, and `next build` all clean; confirmed both new routes serve
+      200 and the tab labels render in the actual page HTML.
+
 ---
 
 ## Phase 7 — Minimal ops mechanism (not a UI)
