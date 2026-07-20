@@ -103,9 +103,9 @@ export interface Paginated<T> {
   pageSize: number;
 }
 
-function toQueryString(params: Record<string, unknown>): string {
+function toQueryString(params: object): string {
   const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
     if (value !== undefined && value !== "") query.set(key, String(value));
   }
   const suffix = query.toString();

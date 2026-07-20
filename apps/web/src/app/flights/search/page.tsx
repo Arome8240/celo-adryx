@@ -155,7 +155,7 @@ function FlightSearchResults() {
                     searchId={response.searchId}
                     tripType={response.tripType}
                     adults={response.adults}
-                    children={response.children}
+                    childrenCount={response.children}
                     infants={response.infants}
                   />
                 ))}

@@ -12,7 +12,8 @@ export interface FlightResultCardProps {
   searchId: string;
   tripType: TripType;
   adults: number;
-  children: number;
+  /** Named childrenCount, not children — React reserves the `children` prop name. */
+  childrenCount: number;
   infants: number;
 }
 
@@ -21,7 +22,7 @@ export function FlightResultCard({
   searchId,
   tripType,
   adults,
-  children,
+  childrenCount,
   infants,
 }: FlightResultCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -33,7 +34,7 @@ export function FlightResultCard({
     offerId: offer.id,
     tripType,
     adults: String(adults),
-    children: String(children),
+    children: String(childrenCount),
     infants: String(infants),
   }).toString()}`;
 
