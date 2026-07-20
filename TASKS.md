@@ -564,6 +564,21 @@ confirmed mainnet-only is intentional. Proceeding on that basis.
     this live contract. Deploying and verifying the deployment is not the same as exercising
     a real payment against it — that's the natural next step whenever ready to test with real
     funds (small-value, first-run, exactly as flagged when mainnet-only was decided).
+- [x] **Temporary fixed test charge** (requested once live on mainnet, "since it's still in
+      test"): `PaymentsService` now charges a flat **0.1 USDm** or **1 CELO** for every
+      booking, regardless of the real flight price — `initiate()` and `verifyDeposit()` in
+      `apps/api/src/payments/payments.service.ts` use two new constants
+      (`TEST_FIXED_USDM_AMOUNT`/`TEST_FIXED_CELO_AMOUNT`) instead of
+      `booking.totalAmountMinor`. The UI is unaffected — every displayed price (search
+      results, booking form, booking detail totals) still reads `booking.totalAmountMinor`
+      directly and was never touched; `DepositCard` never displayed a numeric amount to begin
+      with, so there was nothing there to change either. **To revert to real pricing**: delete
+      the two constants and their doc comment, and use `this.celo.toTokenAmount(...)` /
+      `await this.celo.quoteNativeAmountForUsd(...)` again in both places — that real-pricing
+      code path (including the live Mento quote and the 3%-tolerance native-amount check) was
+      left completely untouched in `CeloService`, just unused while this override is active.
+      **Do this before any real customer-facing launch** — right now every booking is
+      underpriced by design.
 - [ ] MiniPay app-directory submission — check `docs.minipay.xyz` directly for current
       submission/listing requirements before that step; nothing manifest-file-shaped turned
       up in search, so distribution may just be a listing request rather than a manifest to
