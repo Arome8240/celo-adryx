@@ -17,6 +17,7 @@ import {
 import { celo, celoSepolia } from "wagmi/chains";
 import { authApi } from "@/lib/auth-api";
 import { useAuthStore } from "@/lib/auth-store";
+import { useIsMiniPay } from "@/lib/use-is-minipay";
 
 const connectors = connectorsForWallets(
   [
@@ -53,17 +54,17 @@ function WalletProviderInner({ children }: { children: React.ReactNode }) {
   const clearSession = useAuthStore((s) => s.clearSession);
   const setIsSigningIn = useAuthStore((s) => s.setIsSigningIn);
   const signInInFlight = useRef(false);
+  const isMiniPay = useIsMiniPay();
 
-  // Check if the app is running inside MiniPay — the wallet connection is
-  // implicit there, so connect immediately without a "Connect Wallet" tap.
+  // Inside MiniPay the wallet connection is implicit — connect immediately
+  // without a "Connect Wallet" tap.
   useEffect(() => {
-    if (window.ethereum && window.ethereum.isMiniPay) {
-      const injectedConnector = connectors.find((c) => c.id === "injected");
-      if (injectedConnector) {
-        connect({ connector: injectedConnector });
-      }
+    if (!isMiniPay) return;
+    const injectedConnector = connectors.find((c) => c.id === "injected");
+    if (injectedConnector) {
+      connect({ connector: injectedConnector });
     }
-  }, [connect, connectors]);
+  }, [isMiniPay, connect, connectors]);
 
   // Sign-In-With-Ethereum: a connected wallet with no matching session is
   // this app's entire signup/login flow — see TASKS.md Phase 1.

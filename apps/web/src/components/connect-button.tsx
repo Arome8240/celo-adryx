@@ -1,19 +1,12 @@
 "use client";
 
 import { ConnectButton as RainbowKitConnectButton } from "@rainbow-me/rainbowkit";
-import { useEffect, useState } from "react";
+import { useIsMiniPay } from "@/lib/use-is-minipay";
 
 export function ConnectButton() {
-  const [isMinipay, setIsMinipay] = useState(false);
+  const isMiniPay = useIsMiniPay();
 
-  useEffect(() => {
-    // @ts-ignore
-    if (window.ethereum?.isMiniPay) {
-      setIsMinipay(true);
-    }
-  }, []);
-
-  if (isMinipay) {
+  if (isMiniPay) {
     return null;
   }
 
