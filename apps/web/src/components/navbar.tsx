@@ -16,6 +16,8 @@ import { useAuthStore } from "@/lib/auth-store"
 
 const navLinks = [
   { name: "Home", href: "/" },
+  { name: "My Trips", href: "/bookings" },
+  { name: "Account", href: "/account" },
   { name: "Docs", href: "https://docs.celo.org", external: true },
 ]
 
