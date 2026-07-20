@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { Menu, ExternalLink } from "lucide-react"
+import { Menu, ExternalLink, User, Ticket, UserCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -11,15 +11,74 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { ConnectButton } from "@/components/connect-button"
 import { useAuthStore } from "@/lib/auth-store"
+import { cn } from "@/lib/utils"
 
 const navLinks = [
   { name: "Home", href: "/" },
-  { name: "My Trips", href: "/bookings" },
-  { name: "Account", href: "/account" },
   { name: "Docs", href: "https://docs.celo.org", external: true },
 ]
+
+const profileLinks = [
+  { name: "My Trips", href: "/bookings", icon: Ticket },
+  { name: "Account", href: "/account", icon: UserCircle },
+]
+
+function shortenAddress(address: string): string {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`
+}
+
+function ProfileMenu() {
+  const pathname = usePathname()
+  const user = useAuthStore((s) => s.user)
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full">
+          <User className="h-5 w-5" />
+          <span className="sr-only">Open profile menu</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        {user?.walletAddress && (
+          <>
+            <DropdownMenuLabel className="font-mono text-xs font-normal text-muted-foreground">
+              {shortenAddress(user.walletAddress)}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        {profileLinks.map((link) => {
+          const Icon = link.icon
+          return (
+            <DropdownMenuItem key={link.href} asChild>
+              <Link
+                href={link.href}
+                className={cn(
+                  "cursor-pointer",
+                  pathname === link.href && "text-primary",
+                )}
+              >
+                <Icon className="mr-2 h-4 w-4" />
+                {link.name}
+              </Link>
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 export function Navbar() {
   const pathname = usePathname()
@@ -57,6 +116,18 @@ export function Navbar() {
                   >
                     {link.name}
                     {link.external && <ExternalLink className="h-4 w-4" />}
+                  </Link>
+                ))}
+                {profileLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-2 text-base font-medium transition-colors hover:text-primary ${
+                      pathname === link.href ? "text-foreground" : "text-foreground/70"
+                    }`}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    {link.name}
                   </Link>
                 ))}
                 <div className="mt-6 pt-6 border-t">
@@ -99,6 +170,7 @@ export function Navbar() {
               <span className="text-sm text-muted-foreground">Signing in…</span>
             )}
             <ConnectButton />
+            <ProfileMenu />
           </div>
         </nav>
       </div>
