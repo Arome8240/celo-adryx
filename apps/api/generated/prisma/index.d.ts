@@ -9702,6 +9702,7 @@ export namespace Prisma {
     status: $Enums.PaymentStatus | null
     chainId: number | null
     tokenAddress: string | null
+    isNative: boolean | null
     amountMinor: number | null
     currency: string | null
     escrowBookingIdHash: string | null
@@ -9718,6 +9719,7 @@ export namespace Prisma {
     status: $Enums.PaymentStatus | null
     chainId: number | null
     tokenAddress: string | null
+    isNative: boolean | null
     amountMinor: number | null
     currency: string | null
     escrowBookingIdHash: string | null
@@ -9734,6 +9736,7 @@ export namespace Prisma {
     status: number
     chainId: number
     tokenAddress: number
+    isNative: number
     amountMinor: number
     currency: number
     escrowBookingIdHash: number
@@ -9762,6 +9765,7 @@ export namespace Prisma {
     status?: true
     chainId?: true
     tokenAddress?: true
+    isNative?: true
     amountMinor?: true
     currency?: true
     escrowBookingIdHash?: true
@@ -9778,6 +9782,7 @@ export namespace Prisma {
     status?: true
     chainId?: true
     tokenAddress?: true
+    isNative?: true
     amountMinor?: true
     currency?: true
     escrowBookingIdHash?: true
@@ -9794,6 +9799,7 @@ export namespace Prisma {
     status?: true
     chainId?: true
     tokenAddress?: true
+    isNative?: true
     amountMinor?: true
     currency?: true
     escrowBookingIdHash?: true
@@ -9896,7 +9902,8 @@ export namespace Prisma {
     bookingId: string
     status: $Enums.PaymentStatus
     chainId: number
-    tokenAddress: string
+    tokenAddress: string | null
+    isNative: boolean
     amountMinor: number
     currency: string
     escrowBookingIdHash: string
@@ -9932,6 +9939,7 @@ export namespace Prisma {
     status?: boolean
     chainId?: boolean
     tokenAddress?: boolean
+    isNative?: boolean
     amountMinor?: boolean
     currency?: boolean
     escrowBookingIdHash?: boolean
@@ -9949,6 +9957,7 @@ export namespace Prisma {
     status?: boolean
     chainId?: boolean
     tokenAddress?: boolean
+    isNative?: boolean
     amountMinor?: boolean
     currency?: boolean
     escrowBookingIdHash?: boolean
@@ -9966,6 +9975,7 @@ export namespace Prisma {
     status?: boolean
     chainId?: boolean
     tokenAddress?: boolean
+    isNative?: boolean
     amountMinor?: boolean
     currency?: boolean
     escrowBookingIdHash?: boolean
@@ -9983,6 +9993,7 @@ export namespace Prisma {
     status?: boolean
     chainId?: boolean
     tokenAddress?: boolean
+    isNative?: boolean
     amountMinor?: boolean
     currency?: boolean
     escrowBookingIdHash?: boolean
@@ -9993,7 +10004,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type PaymentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "bookingId" | "status" | "chainId" | "tokenAddress" | "amountMinor" | "currency" | "escrowBookingIdHash" | "depositTxHash" | "releaseTxHash" | "refundTxHash" | "createdAt" | "updatedAt", ExtArgs["result"]["payment"]>
+  export type PaymentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "bookingId" | "status" | "chainId" | "tokenAddress" | "isNative" | "amountMinor" | "currency" | "escrowBookingIdHash" | "depositTxHash" | "releaseTxHash" | "refundTxHash" | "createdAt" | "updatedAt", ExtArgs["result"]["payment"]>
   export type PaymentInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     booking?: boolean | BookingDefaultArgs<ExtArgs>
   }
@@ -10014,7 +10025,15 @@ export namespace Prisma {
       bookingId: string
       status: $Enums.PaymentStatus
       chainId: number
-      tokenAddress: string
+      /**
+       * Null when isNative is true — a native CELO deposit has no ERC20 token address.
+       */
+      tokenAddress: string | null
+      /**
+       * True for the non-MiniPay "pay with CELO" path (native deposit); false for the
+       * MiniPay "pay with USDm" path (ERC20 deposit).
+       */
+      isNative: boolean
       amountMinor: number
       currency: string
       /**
@@ -10455,6 +10474,7 @@ export namespace Prisma {
     readonly status: FieldRef<"Payment", 'PaymentStatus'>
     readonly chainId: FieldRef<"Payment", 'Int'>
     readonly tokenAddress: FieldRef<"Payment", 'String'>
+    readonly isNative: FieldRef<"Payment", 'Boolean'>
     readonly amountMinor: FieldRef<"Payment", 'Int'>
     readonly currency: FieldRef<"Payment", 'String'>
     readonly escrowBookingIdHash: FieldRef<"Payment", 'String'>
@@ -11006,6 +11026,7 @@ export namespace Prisma {
     status: 'status',
     chainId: 'chainId',
     tokenAddress: 'tokenAddress',
+    isNative: 'isNative',
     amountMinor: 'amountMinor',
     currency: 'currency',
     escrowBookingIdHash: 'escrowBookingIdHash',
@@ -11229,6 +11250,13 @@ export namespace Prisma {
    * Reference to a field of type 'PaymentStatus[]'
    */
   export type ListEnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentStatus[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
   /**
    * Deep Input Types
@@ -11804,7 +11832,8 @@ export namespace Prisma {
     bookingId?: StringFilter<"Payment"> | string
     status?: EnumPaymentStatusFilter<"Payment"> | $Enums.PaymentStatus
     chainId?: IntFilter<"Payment"> | number
-    tokenAddress?: StringFilter<"Payment"> | string
+    tokenAddress?: StringNullableFilter<"Payment"> | string | null
+    isNative?: BoolFilter<"Payment"> | boolean
     amountMinor?: IntFilter<"Payment"> | number
     currency?: StringFilter<"Payment"> | string
     escrowBookingIdHash?: StringFilter<"Payment"> | string
@@ -11821,7 +11850,8 @@ export namespace Prisma {
     bookingId?: SortOrder
     status?: SortOrder
     chainId?: SortOrder
-    tokenAddress?: SortOrder
+    tokenAddress?: SortOrderInput | SortOrder
+    isNative?: SortOrder
     amountMinor?: SortOrder
     currency?: SortOrder
     escrowBookingIdHash?: SortOrder
@@ -11843,7 +11873,8 @@ export namespace Prisma {
     NOT?: PaymentWhereInput | PaymentWhereInput[]
     status?: EnumPaymentStatusFilter<"Payment"> | $Enums.PaymentStatus
     chainId?: IntFilter<"Payment"> | number
-    tokenAddress?: StringFilter<"Payment"> | string
+    tokenAddress?: StringNullableFilter<"Payment"> | string | null
+    isNative?: BoolFilter<"Payment"> | boolean
     amountMinor?: IntFilter<"Payment"> | number
     currency?: StringFilter<"Payment"> | string
     releaseTxHash?: StringNullableFilter<"Payment"> | string | null
@@ -11858,7 +11889,8 @@ export namespace Prisma {
     bookingId?: SortOrder
     status?: SortOrder
     chainId?: SortOrder
-    tokenAddress?: SortOrder
+    tokenAddress?: SortOrderInput | SortOrder
+    isNative?: SortOrder
     amountMinor?: SortOrder
     currency?: SortOrder
     escrowBookingIdHash?: SortOrder
@@ -11882,7 +11914,8 @@ export namespace Prisma {
     bookingId?: StringWithAggregatesFilter<"Payment"> | string
     status?: EnumPaymentStatusWithAggregatesFilter<"Payment"> | $Enums.PaymentStatus
     chainId?: IntWithAggregatesFilter<"Payment"> | number
-    tokenAddress?: StringWithAggregatesFilter<"Payment"> | string
+    tokenAddress?: StringNullableWithAggregatesFilter<"Payment"> | string | null
+    isNative?: BoolWithAggregatesFilter<"Payment"> | boolean
     amountMinor?: IntWithAggregatesFilter<"Payment"> | number
     currency?: StringWithAggregatesFilter<"Payment"> | string
     escrowBookingIdHash?: StringWithAggregatesFilter<"Payment"> | string
@@ -12532,7 +12565,8 @@ export namespace Prisma {
     id?: string
     status?: $Enums.PaymentStatus
     chainId: number
-    tokenAddress: string
+    tokenAddress?: string | null
+    isNative?: boolean
     amountMinor: number
     currency: string
     escrowBookingIdHash: string
@@ -12549,7 +12583,8 @@ export namespace Prisma {
     bookingId: string
     status?: $Enums.PaymentStatus
     chainId: number
-    tokenAddress: string
+    tokenAddress?: string | null
+    isNative?: boolean
     amountMinor: number
     currency: string
     escrowBookingIdHash: string
@@ -12564,7 +12599,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     status?: EnumPaymentStatusFieldUpdateOperationsInput | $Enums.PaymentStatus
     chainId?: IntFieldUpdateOperationsInput | number
-    tokenAddress?: StringFieldUpdateOperationsInput | string
+    tokenAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    isNative?: BoolFieldUpdateOperationsInput | boolean
     amountMinor?: IntFieldUpdateOperationsInput | number
     currency?: StringFieldUpdateOperationsInput | string
     escrowBookingIdHash?: StringFieldUpdateOperationsInput | string
@@ -12581,7 +12617,8 @@ export namespace Prisma {
     bookingId?: StringFieldUpdateOperationsInput | string
     status?: EnumPaymentStatusFieldUpdateOperationsInput | $Enums.PaymentStatus
     chainId?: IntFieldUpdateOperationsInput | number
-    tokenAddress?: StringFieldUpdateOperationsInput | string
+    tokenAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    isNative?: BoolFieldUpdateOperationsInput | boolean
     amountMinor?: IntFieldUpdateOperationsInput | number
     currency?: StringFieldUpdateOperationsInput | string
     escrowBookingIdHash?: StringFieldUpdateOperationsInput | string
@@ -12597,7 +12634,8 @@ export namespace Prisma {
     bookingId: string
     status?: $Enums.PaymentStatus
     chainId: number
-    tokenAddress: string
+    tokenAddress?: string | null
+    isNative?: boolean
     amountMinor: number
     currency: string
     escrowBookingIdHash: string
@@ -12612,7 +12650,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     status?: EnumPaymentStatusFieldUpdateOperationsInput | $Enums.PaymentStatus
     chainId?: IntFieldUpdateOperationsInput | number
-    tokenAddress?: StringFieldUpdateOperationsInput | string
+    tokenAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    isNative?: BoolFieldUpdateOperationsInput | boolean
     amountMinor?: IntFieldUpdateOperationsInput | number
     currency?: StringFieldUpdateOperationsInput | string
     escrowBookingIdHash?: StringFieldUpdateOperationsInput | string
@@ -12628,7 +12667,8 @@ export namespace Prisma {
     bookingId?: StringFieldUpdateOperationsInput | string
     status?: EnumPaymentStatusFieldUpdateOperationsInput | $Enums.PaymentStatus
     chainId?: IntFieldUpdateOperationsInput | number
-    tokenAddress?: StringFieldUpdateOperationsInput | string
+    tokenAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    isNative?: BoolFieldUpdateOperationsInput | boolean
     amountMinor?: IntFieldUpdateOperationsInput | number
     currency?: StringFieldUpdateOperationsInput | string
     escrowBookingIdHash?: StringFieldUpdateOperationsInput | string
@@ -13321,12 +13361,18 @@ export namespace Prisma {
     not?: NestedEnumPaymentStatusFilter<$PrismaModel> | $Enums.PaymentStatus
   }
 
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type PaymentCountOrderByAggregateInput = {
     id?: SortOrder
     bookingId?: SortOrder
     status?: SortOrder
     chainId?: SortOrder
     tokenAddress?: SortOrder
+    isNative?: SortOrder
     amountMinor?: SortOrder
     currency?: SortOrder
     escrowBookingIdHash?: SortOrder
@@ -13348,6 +13394,7 @@ export namespace Prisma {
     status?: SortOrder
     chainId?: SortOrder
     tokenAddress?: SortOrder
+    isNative?: SortOrder
     amountMinor?: SortOrder
     currency?: SortOrder
     escrowBookingIdHash?: SortOrder
@@ -13364,6 +13411,7 @@ export namespace Prisma {
     status?: SortOrder
     chainId?: SortOrder
     tokenAddress?: SortOrder
+    isNative?: SortOrder
     amountMinor?: SortOrder
     currency?: SortOrder
     escrowBookingIdHash?: SortOrder
@@ -13387,6 +13435,14 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumPaymentStatusFilter<$PrismaModel>
     _max?: NestedEnumPaymentStatusFilter<$PrismaModel>
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type RefreshTokenCreateNestedManyWithoutUserInput = {
@@ -13757,6 +13813,10 @@ export namespace Prisma {
     set?: $Enums.PaymentStatus
   }
 
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
+  }
+
   export type BookingUpdateOneRequiredWithoutPaymentNestedInput = {
     create?: XOR<BookingCreateWithoutPaymentInput, BookingUncheckedCreateWithoutPaymentInput>
     connectOrCreate?: BookingCreateOrConnectWithoutPaymentInput
@@ -14085,6 +14145,11 @@ export namespace Prisma {
     not?: NestedEnumPaymentStatusFilter<$PrismaModel> | $Enums.PaymentStatus
   }
 
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type NestedEnumPaymentStatusWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.PaymentStatus | EnumPaymentStatusFieldRefInput<$PrismaModel>
     in?: $Enums.PaymentStatus[] | ListEnumPaymentStatusFieldRefInput<$PrismaModel>
@@ -14093,6 +14158,14 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumPaymentStatusFilter<$PrismaModel>
     _max?: NestedEnumPaymentStatusFilter<$PrismaModel>
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type RefreshTokenCreateWithoutUserInput = {
@@ -14425,7 +14498,8 @@ export namespace Prisma {
     id?: string
     status?: $Enums.PaymentStatus
     chainId: number
-    tokenAddress: string
+    tokenAddress?: string | null
+    isNative?: boolean
     amountMinor: number
     currency: string
     escrowBookingIdHash: string
@@ -14440,7 +14514,8 @@ export namespace Prisma {
     id?: string
     status?: $Enums.PaymentStatus
     chainId: number
-    tokenAddress: string
+    tokenAddress?: string | null
+    isNative?: boolean
     amountMinor: number
     currency: string
     escrowBookingIdHash: string
@@ -14545,7 +14620,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     status?: EnumPaymentStatusFieldUpdateOperationsInput | $Enums.PaymentStatus
     chainId?: IntFieldUpdateOperationsInput | number
-    tokenAddress?: StringFieldUpdateOperationsInput | string
+    tokenAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    isNative?: BoolFieldUpdateOperationsInput | boolean
     amountMinor?: IntFieldUpdateOperationsInput | number
     currency?: StringFieldUpdateOperationsInput | string
     escrowBookingIdHash?: StringFieldUpdateOperationsInput | string
@@ -14560,7 +14636,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     status?: EnumPaymentStatusFieldUpdateOperationsInput | $Enums.PaymentStatus
     chainId?: IntFieldUpdateOperationsInput | number
-    tokenAddress?: StringFieldUpdateOperationsInput | string
+    tokenAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    isNative?: BoolFieldUpdateOperationsInput | boolean
     amountMinor?: IntFieldUpdateOperationsInput | number
     currency?: StringFieldUpdateOperationsInput | string
     escrowBookingIdHash?: StringFieldUpdateOperationsInput | string

@@ -6,7 +6,6 @@ import { getAddress, keccak256, parseEther, toBytes, zeroAddress } from "viem";
 const DEPOSIT_AMOUNT = parseEther("100");
 const BOOKING_HASH_1 = keccak256(toBytes("booking-1"));
 const BOOKING_HASH_2 = keccak256(toBytes("booking-2"));
-const BOOKING_HASH_3 = keccak256(toBytes("booking-3"));
 
 // Escrow.Status enum order, mirrored from the contract.
 const STATUS_DEPOSITED = 1;
@@ -57,6 +56,8 @@ describe("FlightEscrow", function () {
       { client: { wallet: attacker } },
     );
 
+    const publicClient = await hre.viem.getPublicClient();
+
     return {
       token,
       escrow,
@@ -70,6 +71,7 @@ describe("FlightEscrow", function () {
       escrowAsOperator,
       escrowAsAdmin,
       escrowAsAttacker,
+      publicClient,
     };
   }
 
@@ -166,7 +168,7 @@ describe("FlightEscrow", function () {
       await tokenAsPayer.write.approve([escrow.address, DEPOSIT_AMOUNT]);
       await escrowAsPayer.write.deposit([BOOKING_HASH_1, DEPOSIT_AMOUNT]);
 
-      const [storedPayer, amount, status] = await escrow.read.escrows([
+      const [storedPayer, amount, status, isNative] = await escrow.read.escrows([
         BOOKING_HASH_1,
       ]);
       expect(getAddress(storedPayer)).to.equal(
@@ -174,6 +176,7 @@ describe("FlightEscrow", function () {
       );
       expect(amount).to.equal(DEPOSIT_AMOUNT);
       expect(status).to.equal(STATUS_DEPOSITED);
+      expect(isNative).to.be.false;
       expect(await token.read.balanceOf([escrow.address])).to.equal(
         DEPOSIT_AMOUNT,
       );
@@ -202,10 +205,68 @@ describe("FlightEscrow", function () {
         escrowAsPayer.write.deposit([BOOKING_HASH_1, DEPOSIT_AMOUNT]),
       ).to.be.rejected;
     });
+
+    it("rejects a deposit on a hash already used via depositNative", async function () {
+      const { escrowAsPayer, tokenAsPayer, escrow } =
+        await loadFixture(depositedNativeFixture);
+      await tokenAsPayer.write.approve([escrow.address, DEPOSIT_AMOUNT]);
+      await expect(
+        escrowAsPayer.write.deposit([BOOKING_HASH_1, DEPOSIT_AMOUNT]),
+      ).to.be.rejectedWith("FlightEscrow: already deposited");
+    });
+  });
+
+  describe("depositNative", function () {
+    it("holds native CELO in escrow and records the deposit", async function () {
+      const { escrowAsPayer, escrow, payer, publicClient } =
+        await loadFixture(deployFixture);
+
+      await escrowAsPayer.write.depositNative([BOOKING_HASH_1], {
+        value: DEPOSIT_AMOUNT,
+      });
+
+      const [storedPayer, amount, status, isNative] = await escrow.read.escrows([
+        BOOKING_HASH_1,
+      ]);
+      expect(getAddress(storedPayer)).to.equal(
+        getAddress(payer.account.address),
+      );
+      expect(amount).to.equal(DEPOSIT_AMOUNT);
+      expect(status).to.equal(STATUS_DEPOSITED);
+      expect(isNative).to.be.true;
+      expect(await publicClient.getBalance({ address: escrow.address })).to.equal(
+        DEPOSIT_AMOUNT,
+      );
+    });
+
+    it("rejects a second native deposit for the same bookingIdHash", async function () {
+      const { escrowAsPayer } = await loadFixture(depositedNativeFixture);
+      await expect(
+        escrowAsPayer.write.depositNative([BOOKING_HASH_1], {
+          value: DEPOSIT_AMOUNT,
+        }),
+      ).to.be.rejectedWith("FlightEscrow: already deposited");
+    });
+
+    it("rejects a zero value", async function () {
+      const { escrowAsPayer } = await loadFixture(deployFixture);
+      await expect(
+        escrowAsPayer.write.depositNative([BOOKING_HASH_1], { value: 0n }),
+      ).to.be.rejectedWith("FlightEscrow: amount is zero");
+    });
+
+    it("rejects a native deposit on a hash already used via deposit", async function () {
+      const { escrowAsPayer } = await loadFixture(depositedFixture);
+      await expect(
+        escrowAsPayer.write.depositNative([BOOKING_HASH_1], {
+          value: DEPOSIT_AMOUNT,
+        }),
+      ).to.be.rejectedWith("FlightEscrow: already deposited");
+    });
   });
 
   describe("release", function () {
-    it("moves funds to the treasury and marks the escrow released", async function () {
+    it("moves ERC20 funds to the treasury and marks the escrow released", async function () {
       const { escrowAsOperator, token, treasury, escrow } =
         await loadFixture(depositedFixture);
 
@@ -214,8 +275,26 @@ describe("FlightEscrow", function () {
       expect(await token.read.balanceOf([treasury.account.address])).to.equal(
         DEPOSIT_AMOUNT,
       );
-      const [, , status] = await escrow.read.escrows([BOOKING_HASH_1]);
+      const [, , status, isNative] = await escrow.read.escrows([BOOKING_HASH_1]);
       expect(status).to.equal(STATUS_RELEASED);
+      expect(isNative).to.be.false;
+    });
+
+    it("moves native CELO to the treasury and marks the escrow released", async function () {
+      const { escrowAsOperator, treasury, escrow, publicClient } =
+        await loadFixture(depositedNativeFixture);
+      const balanceBefore = await publicClient.getBalance({
+        address: treasury.account.address,
+      });
+
+      await escrowAsOperator.write.release([BOOKING_HASH_1]);
+
+      expect(
+        await publicClient.getBalance({ address: treasury.account.address }),
+      ).to.equal(balanceBefore + DEPOSIT_AMOUNT);
+      const [, , status, isNative] = await escrow.read.escrows([BOOKING_HASH_1]);
+      expect(status).to.equal(STATUS_RELEASED);
+      expect(isNative).to.be.true;
     });
 
     it("rejects a non-operator caller", async function () {
@@ -241,7 +320,7 @@ describe("FlightEscrow", function () {
   });
 
   describe("refund", function () {
-    it("returns funds to the original payer and marks the escrow refunded", async function () {
+    it("returns ERC20 funds to the original payer and marks the escrow refunded", async function () {
       const { escrowAsOperator, token, payer, escrow } =
         await loadFixture(depositedFixture);
       const balanceBefore = await token.read.balanceOf([
@@ -253,8 +332,26 @@ describe("FlightEscrow", function () {
       expect(
         await token.read.balanceOf([payer.account.address]),
       ).to.equal(balanceBefore + DEPOSIT_AMOUNT);
-      const [, , status] = await escrow.read.escrows([BOOKING_HASH_1]);
+      const [, , status, isNative] = await escrow.read.escrows([BOOKING_HASH_1]);
       expect(status).to.equal(STATUS_REFUNDED);
+      expect(isNative).to.be.false;
+    });
+
+    it("returns native CELO to the original payer and marks the escrow refunded", async function () {
+      const { escrowAsOperator, payer, escrow, publicClient } =
+        await loadFixture(depositedNativeFixture);
+      const balanceBefore = await publicClient.getBalance({
+        address: payer.account.address,
+      });
+
+      await escrowAsOperator.write.refund([BOOKING_HASH_1]);
+
+      expect(
+        await publicClient.getBalance({ address: payer.account.address }),
+      ).to.equal(balanceBefore + DEPOSIT_AMOUNT);
+      const [, , status, isNative] = await escrow.read.escrows([BOOKING_HASH_1]);
+      expect(status).to.equal(STATUS_REFUNDED);
+      expect(isNative).to.be.true;
     });
 
     it("rejects a non-operator caller", async function () {

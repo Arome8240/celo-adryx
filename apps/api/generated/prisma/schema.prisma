@@ -144,7 +144,11 @@ model Payment {
   bookingId           String        @unique
   status              PaymentStatus @default(PENDING)
   chainId             Int
-  tokenAddress        String
+  /// Null when isNative is true — a native CELO deposit has no ERC20 token address.
+  tokenAddress        String?
+  /// True for the non-MiniPay "pay with CELO" path (native deposit); false for the
+  /// MiniPay "pay with USDm" path (ERC20 deposit).
+  isNative            Boolean       @default(false)
   amountMinor         Int
   currency            String
   /// keccak256(bookingId) — the key the escrow contract indexes deposits on.

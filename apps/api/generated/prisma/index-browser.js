@@ -215,6 +215,7 @@ exports.Prisma.PaymentScalarFieldEnum = {
   status: 'status',
   chainId: 'chainId',
   tokenAddress: 'tokenAddress',
+  isNative: 'isNative',
   amountMinor: 'amountMinor',
   currency: 'currency',
   escrowBookingIdHash: 'escrowBookingIdHash',
