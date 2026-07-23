@@ -5,6 +5,7 @@ import { erc20Abi, parseAbi, type Hex } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConnectButton } from "@/components/connect-button";
 import type { BookingRecord } from "@/lib/bookings-api";
 import { paymentsApi } from "@/lib/payments-api";
 import { useIsMiniPay } from "@/lib/use-is-minipay";
@@ -106,13 +107,17 @@ export function DepositCard({
           ? "Pay directly from your connected wallet — this approves and deposits USDm into the booking's escrow contract, held until your reservation is confirmed."
           : "Pay directly from your connected wallet — this sends CELO into the booking's escrow contract (priced at the current CELO/USD rate), held until your reservation is confirmed."}
       </p>
-      {!isConnected && (
-        <p className="mb-3 text-sm text-destructive">Connect your wallet to pay.</p>
-      )}
       {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-      <Button onClick={handlePay} disabled={busy || !isConnected} className="w-full">
-        {busy ? stepLabel[step] : stepLabel.idle}
-      </Button>
+      {isConnected ? (
+        <Button onClick={handlePay} disabled={busy} className="w-full">
+          {busy ? stepLabel[step] : stepLabel.idle}
+        </Button>
+      ) : (
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-sm text-muted-foreground">Connect your wallet to pay.</p>
+          <ConnectButton />
+        </div>
+      )}
     </Card>
   );
 }

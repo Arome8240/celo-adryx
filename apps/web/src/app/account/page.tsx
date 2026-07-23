@@ -3,6 +3,7 @@
 import { useAccount, useDisconnect } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConnectButton } from "@/components/connect-button";
 import { UserBalance } from "@/components/user-balance";
 import { useAuthStore } from "@/lib/auth-store";
 import { useRequireAuth } from "@/lib/use-require-auth";
@@ -17,10 +18,11 @@ export default function AccountPage() {
   if (!ready) {
     return (
       <main className="container max-w-lg py-8">
-        <Card className="p-6">
+        <Card className="flex flex-col items-center gap-4 p-6 text-center">
           <p className="text-muted-foreground">
             {isSigningIn ? "Signing in…" : "Connect your wallet to view your account."}
           </p>
+          {!isSigningIn && <ConnectButton />}
         </Card>
       </main>
     );
