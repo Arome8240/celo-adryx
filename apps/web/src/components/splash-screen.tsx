@@ -40,7 +40,7 @@ export function SplashScreen() {
       )}
     >
       <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
-        <Plane className="h-10 w-10 text-primary" />
+        <Airplane variant="Bold" className="h-10 w-10 text-primary" />
       </div>
       <span className="text-xl font-bold tracking-tight">Adryx</span>
     </div>

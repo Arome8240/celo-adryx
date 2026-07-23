@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Ticket, User } from "lucide-react";
+import { Home2, Ticket, User } from "iconsax-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/", label: "Search", icon: Home },
+  { href: "/", label: "Search", icon: Home2 },
   { href: "/bookings", label: "Trips", icon: Ticket },
   { href: "/account", label: "Account", icon: User },
 ];
@@ -38,7 +38,7 @@ export function BottomNav() {
                 active ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon variant={active ? "Bold" : "Linear"} className="h-5 w-5" />
               {tab.label}
             </Link>
           );
