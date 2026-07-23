@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { Menu, ExternalLink, User, Ticket, UserCircle } from "lucide-react"
+import { HambergerMenu, Export, User, Ticket, ProfileCircle } from "iconsax-react"
 
 import { Button } from "@/components/ui/button"
 import {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MapPin } from "lucide-react";
+import { Location } from "iconsax-react";
 import type { AirportSummary } from "@/lib/flight-types";
 import { flightsApi } from "@/lib/flights-api";
 
@@ -53,7 +53,7 @@ export function AirportAutocomplete({
     <div className="relative flex flex-col gap-1.5" ref={rootRef}>
       <span className="text-sm font-medium leading-none text-foreground">{label}</span>
       <div className="relative">
-        <MapPin className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Location className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           className="flex h-10 w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           placeholder={placeholder}
