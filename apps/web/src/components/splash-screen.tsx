@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plane } from "lucide-react";
+import { Airplane } from "iconsax-react";
 import { cn } from "@/lib/utils";
 
 const SPLASH_VISIBLE_MS = 900;
