@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AirlineLogo } from "@/components/flights/AirlineLogo";
+import { ConnectButton } from "@/components/connect-button";
 import { bookingsApi, type BookingRecord, type BookingStatus } from "@/lib/bookings-api";
 import { formatMoneyMinor } from "@/lib/format-money";
 import { useRequireAuth } from "@/lib/use-require-auth";
@@ -34,10 +35,11 @@ export default function BookingsListPage() {
   if (!ready) {
     return (
       <main className="container max-w-lg py-8">
-        <Card className="p-6">
+        <Card className="flex flex-col items-center gap-4 p-6 text-center">
           <p className="text-muted-foreground">
             {isSigningIn ? "Signing in…" : "Connect your wallet to see your trips."}
           </p>
+          {!isSigningIn && <ConnectButton />}
         </Card>
       </main>
     );
