@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { HambergerMenu, Export, User, Ticket, ProfileCircle } from "iconsax-react"
 
@@ -92,7 +91,7 @@ export function Navbar() {
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
+                <HambergerMenu className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
@@ -115,7 +114,7 @@ export function Navbar() {
                     }`}
                   >
                     {link.name}
-                    {link.external && <ExternalLink className="h-4 w-4" />}
+                    {link.external && <Export className="h-4 w-4" />}
                   </Link>
                 ))}
                 {profileLinks.map((link) => (
