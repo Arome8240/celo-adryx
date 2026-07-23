@@ -2,8 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
-import { BottomNav } from '@/components/bottom-nav';
-import { Navbar } from '@/components/navbar';
+import { AppChrome } from '@/components/app-chrome';
 import { OnboardingGate } from '@/components/onboarding-gate';
 import { WalletProvider } from "@/components/wallet-provider"
 
@@ -60,11 +59,7 @@ export default function RootLayout({
         <div className="relative flex min-h-screen flex-col">
           <WalletProvider>
             <OnboardingGate />
-            <Navbar />
-            <main className="flex-1 pb-16 sm:pb-0">
-              {children}
-            </main>
-            <BottomNav />
+            <AppChrome>{children}</AppChrome>
           </WalletProvider>
         </div>
       </body>

@@ -53,7 +53,7 @@ export default function OnboardingPage() {
 
   return (
     <div
-      className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-sm flex-col px-6 py-8"
+      className="mx-auto flex min-h-dvh w-full max-w-sm flex-col px-6 py-8"
       style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}
     >
       <div className="flex justify-end">
