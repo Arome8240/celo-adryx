@@ -30,7 +30,7 @@ const navLinks = [
 
 const profileLinks = [
   { name: "My Trips", href: "/bookings", icon: Ticket },
-  { name: "Account", href: "/account", icon: UserCircle },
+  { name: "Account", href: "/account", icon: ProfileCircle },
 ]
 
 function shortenAddress(address: string): string {
