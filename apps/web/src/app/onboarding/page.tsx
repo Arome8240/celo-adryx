@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plane, Search, Wallet, Ticket } from "lucide-react";
+import { Airplane, SearchNormal, Wallet, Ticket } from "iconsax-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,13 +16,13 @@ export default function OnboardingPage() {
 
   const steps = [
     {
-      icon: Plane,
+      icon: Airplane,
       title: "Welcome to Adryx",
       description:
         "Book real flights and pay straight from your wallet — no cards, no bank transfers, no waiting on approvals.",
     },
     {
-      icon: Search,
+      icon: SearchNormal,
       title: "Search live flights",
       description:
         "Real fares from airlines worldwide — search any route and any date, just like a travel site.",
@@ -69,7 +69,7 @@ export default function OnboardingPage() {
 
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-          <Icon className="h-9 w-9 text-primary" />
+          <Icon variant="Bold" className="h-9 w-9 text-primary" />
         </div>
         <h1 className="mb-3 text-2xl font-bold tracking-tight">{current.title}</h1>
         <p className="text-muted-foreground">{current.description}</p>

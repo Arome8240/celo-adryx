@@ -271,9 +271,6 @@ importers:
       iconsax-react:
         specifier: ^0.0.8
         version: 0.0.8(react@18.3.1)
-      lucide-react:
-        specifier: ^0.292.0
-        version: 0.292.0(react@18.3.1)
       next:
         specifier: ^14.0.0
         version: 14.2.35(react-dom@18.3.1)(react@18.3.1)
@@ -12205,14 +12202,6 @@ packages:
   /lru_map@0.3.3:
     resolution: {integrity: sha512-Pn9cox5CsMYngeDbmChANltQl+5pi6XmTrraMSzhPmMBbmgcxmqWry0U3PGapCU1yB4/LqCcom7qhHZiF/jGfQ==}
     dev: true
-
-  /lucide-react@0.292.0(react@18.3.1):
-    resolution: {integrity: sha512-rRgUkpEHWpa5VCT66YscInCQmQuPCB1RFRzkkxMxg4b+jaL0V12E3riWWR2Sh5OIiUhCwGW/ZExuEO4Az32E6Q==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0
-    dependencies:
-      react: 18.3.1
-    dev: false
 
   /magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}

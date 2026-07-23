@@ -1,4 +1,4 @@
-import { Plane } from "lucide-react";
+import { Airplane } from "iconsax-react";
 import { SearchForm } from "@/components/flights/SearchForm";
 
 export default function Home() {
@@ -8,7 +8,7 @@ export default function Home() {
         <div className="container mx-auto max-w-7xl px-4">
           <div className="mx-auto mb-10 max-w-2xl text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-              <Plane className="h-4 w-4" />
+              <Airplane variant="Bold" className="h-4 w-4" />
               Pay with your wallet
             </div>
             <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">

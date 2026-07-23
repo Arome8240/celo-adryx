@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { ArrowDown2 } from "iconsax-react";
 import { cn } from "@/lib/utils";
 
 export interface SelectOption {
@@ -61,7 +61,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <ArrowDown2 className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         </div>
       </div>
     );
