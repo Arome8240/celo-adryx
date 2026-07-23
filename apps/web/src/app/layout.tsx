@@ -4,6 +4,7 @@ import './globals.css';
 
 import { AppChrome } from '@/components/app-chrome';
 import { OnboardingGate } from '@/components/onboarding-gate';
+import { SplashScreen } from '@/components/splash-screen';
 import { WalletProvider } from "@/components/wallet-provider"
 
 const inter = Inter({ subsets: ['latin'] });
@@ -58,6 +59,7 @@ export default function RootLayout({
         {/* Navbar is included on all pages */}
         <div className="relative flex min-h-screen flex-col">
           <WalletProvider>
+            <SplashScreen />
             <OnboardingGate />
             <AppChrome>{children}</AppChrome>
           </WalletProvider>
