@@ -160,7 +160,7 @@ export function Navbar() {
               }`}
             >
               {link.name}
-              {link.external && <ExternalLink className="h-4 w-4" />}
+              {link.external && <Export className="h-4 w-4" />}
             </Link>
           ))}
           
